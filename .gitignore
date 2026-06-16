@@ -26,6 +26,8 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+.claude
 
 # Test coverage (if added later)
 coverage/
+keen-forging-bonbon.md
