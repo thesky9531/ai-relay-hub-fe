@@ -856,7 +856,17 @@ function logout() {
   >
     <aside class="studio-sidebar">
       <div class="studio-brand">
-        <span class="studio-avatar">森</span>
+        <span class="studio-avatar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4.9 16.1C1 12.2 1 5.8 4.9 1.9" />
+            <path d="M7.8 4.7a6.14 6.14 0 0 0-.8 7.5" />
+            <circle cx="12" cy="9" r="2" />
+            <path d="M16.2 4.8c2 2 2.26 5.11.8 7.47" />
+            <path d="M19.1 1.9a9.96 9.96 0 0 1 0 14.1" />
+            <path d="M9.5 18h5" />
+            <path d="m8 22 4-11 4 11" />
+          </svg>
+        </span>
         <div>
           <strong>{{ t.pageTitle }}</strong>
           <p>{{ t.studio.subtitle }}</p>
@@ -871,8 +881,37 @@ function logout() {
       </div>
 
       <div class="studio-top-tabs">
-        <button v-for="tab in t.studio.topTabs" :key="tab" type="button" :class="{ active: tab === t.studio.topTabs[0] }">
-          <span>{{ tab.slice(0, 1) }}</span>
+        <button v-for="(tab, index) in t.studio.topTabs" :key="tab" type="button" :class="{ active: index === 0 }">
+          <span>
+            <svg v-if="index === 0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z" />
+              <path d="m7 16.5-4.74-2.85" />
+              <path d="m7 16.5 5-3" />
+              <path d="M7 16.5v5.17" />
+              <path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z" />
+              <path d="m17 16.5-5-3" />
+              <path d="m17 16.5 4.74-2.85" />
+              <path d="M17 16.5v5.17" />
+              <path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z" />
+              <path d="M12 8 7.26 5.15" />
+              <path d="m12 8 4.74-2.85" />
+              <path d="M12 13.5V8" />
+            </svg>
+            <svg v-else-if="index === 1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 8V4H8" />
+              <rect width="16" height="12" x="4" y="8" rx="2" />
+              <path d="M2 14h2" />
+              <path d="M20 14h2" />
+              <path d="M15 13v2" />
+              <path d="M9 13v2" />
+            </svg>
+            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z" />
+              <path d="M20 2v4" />
+              <path d="M22 4h-4" />
+              <circle cx="4" cy="20" r="2" />
+            </svg>
+          </span>
           {{ tab }}
         </button>
       </div>
