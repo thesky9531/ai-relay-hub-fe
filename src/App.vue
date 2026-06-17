@@ -211,6 +211,58 @@ const composerOptionGroups = [
   },
 ]
 
+const initialConversations = [
+  {
+    id: 'conv-1002',
+    promptText: '一只机械鸟在赛博朋克城市夜空飞翔，霓虹光与雨水反光，电影感运镜。',
+    modelId: 'sora',
+    modelName: 'Sora-2 Pro',
+    accentColor: '#5a7bff',
+    assets: { firstFrame: null, lastFrame: null },
+    parameterLabels: ['综合最优', '1条', '8秒', '1080p', '宽屏 16:9', '有声'],
+    status: 'running',
+    progress: 0.42,
+    estimatedCredits: { min: 1.8, max: 2.4 },
+    createdAt: '2026-06-17T08:55:00Z',
+  },
+  {
+    id: 'conv-1001',
+    promptText: '一支高级香水广告，黑曜石瓶身，雨夜玻璃橱窗，近景微距，电影级灯光。',
+    modelId: 'jimeng',
+    modelName: '即梦 3.5 Pro',
+    accentColor: '#22c6e8',
+    assets: {
+      firstFrame: 'https://picsum.photos/seed/conv-1001-ff/240/240',
+      lastFrame: null,
+    },
+    parameterLabels: ['综合最优', '1条', '首帧', '4秒', '1080p', '宽屏 16:9', '有声'],
+    status: 'completed',
+    result: {
+      type: 'video',
+      thumbnailUrl: 'https://picsum.photos/seed/conv-1001-r/640/360',
+      durationSeconds: 4,
+    },
+    creditsConsumed: 1.16,
+    createdAt: '2026-06-17T08:30:00Z',
+  },
+  {
+    id: 'conv-1000',
+    promptText: '新品电商主图，极简白色背景，商品居中悬浮，柔和顶光，少量阴影。',
+    modelId: 'midjourney',
+    modelName: 'Midjourney V7',
+    accentColor: '#d7b56d',
+    assets: { firstFrame: null, lastFrame: null },
+    parameterLabels: ['综合最优', '方形 1:1', '2K'],
+    status: 'completed',
+    result: {
+      type: 'image',
+      thumbnailUrl: 'https://picsum.photos/seed/conv-1000-r/600/600',
+    },
+    creditsConsumed: 0.42,
+    createdAt: '2026-06-17T08:00:00Z',
+  },
+]
+
 const translations = {
   zh: {
     pageTitle: 'AI Relay Hub',
@@ -689,6 +741,97 @@ function handleDocumentClick(event) {
 onMounted(() => document.addEventListener('click', handleDocumentClick))
 onBeforeUnmount(() => document.removeEventListener('click', handleDocumentClick))
 
+const promptText = ref('')
+const firstFrameInput = ref(null)
+const lastFrameInput = ref(null)
+const firstFramePreview = ref(null)
+const lastFramePreview = ref(null)
+const conversations = ref([...initialConversations])
+
+function triggerFramePick(slot) {
+  const target = slot === 'first' ? firstFrameInput.value : lastFrameInput.value
+  target?.click()
+}
+
+function onPickFrame(slot, event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = () => {
+    if (slot === 'first') firstFramePreview.value = reader.result
+    else lastFramePreview.value = reader.result
+  }
+  reader.readAsDataURL(file)
+  event.target.value = ''
+}
+
+function clearFrame(slot, event) {
+  event.stopPropagation()
+  if (slot === 'first') firstFramePreview.value = null
+  else lastFramePreview.value = null
+}
+
+function currentParameterLabels() {
+  return composerOptionGroups
+    .map((group) => {
+      const selected = composerSelections.value[group.key]
+      const option = group.options.find((o) => o.key === selected)
+      return option?.label[activeLocale.value]
+    })
+    .filter(Boolean)
+}
+
+function submitGeneration() {
+  const text = promptText.value.trim()
+  if (!text) return
+  const model = selectedStudioModel.value
+  const id = `conv-${Date.now()}`
+  const conv = {
+    id,
+    promptText: text,
+    modelId: model.id,
+    modelName: model.name,
+    accentColor: model.accent,
+    assets: {
+      firstFrame: firstFramePreview.value,
+      lastFrame: lastFramePreview.value,
+    },
+    parameterLabels: currentParameterLabels(),
+    status: 'running',
+    progress: 0,
+    estimatedCredits: { min: 0.9531, max: 1.3863 },
+    createdAt: new Date().toISOString(),
+  }
+  conversations.value.unshift(conv)
+  promptText.value = ''
+  firstFramePreview.value = null
+  lastFramePreview.value = null
+  openComposerDropdown.value = null
+
+  window.setTimeout(() => {
+    const target = conversations.value.find((c) => c.id === id)
+    if (!target) return
+    target.status = 'completed'
+    target.result = {
+      type: model.category === 'image' ? 'image' : 'video',
+      thumbnailUrl: `https://picsum.photos/seed/${id}/640/360`,
+      durationSeconds: model.category === 'video' ? 4 : null,
+    }
+    target.creditsConsumed = 1.12
+  }, 3500)
+}
+
+function formatConvTime(iso) {
+  try {
+    const d = new Date(iso)
+    const hh = d.getHours().toString().padStart(2, '0')
+    const mm = d.getMinutes().toString().padStart(2, '0')
+    return `${hh}:${mm}`
+  } catch {
+    return ''
+  }
+}
+
 watch(activeLocale, (locale) => {
   document.documentElement.lang = locale === 'zh' ? 'zh-CN' : locale === 'ja' ? 'ja-JP' : 'en'
 })
@@ -1007,7 +1150,7 @@ function logout() {
         </div>
       </header>
 
-      <div class="studio-stage">
+      <div v-if="conversations.length === 0" class="studio-stage">
         <div class="studio-model-logo" :style="{ '--model-accent': selectedStudioModel.accent }">
           <span>{{ selectedStudioModel.name.slice(0, 1) }}</span>
         </div>
@@ -1016,19 +1159,138 @@ function logout() {
         </article>
       </div>
 
-      <form class="studio-composer" @submit.prevent>
+      <div v-else class="studio-conversation">
+        <article
+          v-for="conv in conversations"
+          :key="conv.id"
+          class="conv-card"
+          :class="`status-${conv.status}`"
+        >
+          <header class="conv-header">
+            <span class="conv-avatar">U</span>
+            <div class="conv-meta">
+              <strong>You</strong>
+              <em>{{ formatConvTime(conv.createdAt) }}</em>
+            </div>
+          </header>
+
+          <div class="conv-body">
+            <div
+              v-if="conv.assets.firstFrame || conv.assets.lastFrame"
+              class="conv-frames"
+            >
+              <figure v-if="conv.assets.firstFrame">
+                <img :src="conv.assets.firstFrame" alt="first frame" />
+                <figcaption>首帧</figcaption>
+              </figure>
+              <span v-if="conv.assets.firstFrame && conv.assets.lastFrame">→</span>
+              <figure v-if="conv.assets.lastFrame">
+                <img :src="conv.assets.lastFrame" alt="last frame" />
+                <figcaption>尾帧</figcaption>
+              </figure>
+            </div>
+            <p class="conv-prompt">{{ conv.promptText }}</p>
+            <div class="conv-params">
+              <span v-for="label in conv.parameterLabels" :key="label">{{ label }}</span>
+            </div>
+          </div>
+
+          <div class="conv-reply">
+            <span
+              class="conv-avatar conv-model-avatar"
+              :style="{ '--model-accent': conv.accentColor }"
+            >
+              {{ conv.modelName.slice(0, 1) }}
+            </span>
+            <div class="conv-reply-body">
+              <header class="conv-reply-header">
+                <strong>{{ conv.modelName }}</strong>
+              </header>
+              <div v-if="conv.status === 'running'" class="conv-running">
+                <div class="conv-running-icon">
+                  <span></span><span></span><span></span>
+                </div>
+                <span>
+                  生成中… 预计 ⚡{{ conv.estimatedCredits.min }}~{{ conv.estimatedCredits.max }}
+                </span>
+              </div>
+              <div v-else-if="conv.status === 'failed'" class="conv-failed">
+                生成失败：{{ conv.errorMessage || '请稍后重试' }}
+              </div>
+              <div
+                v-else-if="conv.status === 'completed' && conv.result"
+                class="conv-result"
+              >
+                <div class="conv-thumb" :class="`type-${conv.result.type}`">
+                  <img :src="conv.result.thumbnailUrl" :alt="`${conv.modelName} result`" />
+                  <span v-if="conv.result.type === 'video'" class="conv-thumb-play">▶</span>
+                  <span
+                    v-if="conv.result.durationSeconds"
+                    class="conv-thumb-duration"
+                  >{{ conv.result.durationSeconds }}s</span>
+                </div>
+                <footer class="conv-result-footer">
+                  <span class="conv-credits">⚡ {{ conv.creditsConsumed }}</span>
+                  <button type="button">↓ 下载</button>
+                  <button type="button">↻ 复用</button>
+                </footer>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <form class="studio-composer" @submit.prevent="submitGeneration">
         <div class="composer-assets">
-          <button type="button">
-            <span>＋</span>
-            {{ t.studio.firstFrame }}
+          <input
+            ref="firstFrameInput"
+            type="file"
+            hidden
+            accept="image/png,image/jpeg,image/webp"
+            @change="onPickFrame('first', $event)"
+          />
+          <input
+            ref="lastFrameInput"
+            type="file"
+            hidden
+            accept="image/png,image/jpeg,image/webp"
+            @change="onPickFrame('last', $event)"
+          />
+          <button
+            type="button"
+            :class="{ 'has-preview': firstFramePreview }"
+            @click="triggerFramePick('first')"
+          >
+            <img v-if="firstFramePreview" :src="firstFramePreview" alt="" />
+            <template v-else>
+              <span>＋</span>
+              {{ t.studio.firstFrame }}
+            </template>
+            <span
+              v-if="firstFramePreview"
+              class="composer-clear"
+              @click="clearFrame('first', $event)"
+            >×</span>
           </button>
           <b>→</b>
-          <button type="button">
-            <span>＋</span>
-            {{ t.studio.lastFrame }}
+          <button
+            type="button"
+            :class="{ 'has-preview': lastFramePreview }"
+            @click="triggerFramePick('last')"
+          >
+            <img v-if="lastFramePreview" :src="lastFramePreview" alt="" />
+            <template v-else>
+              <span>＋</span>
+              {{ t.studio.lastFrame }}
+            </template>
+            <span
+              v-if="lastFramePreview"
+              class="composer-clear"
+              @click="clearFrame('last', $event)"
+            >×</span>
           </button>
         </div>
-        <textarea :placeholder="t.studio.promptHint"></textarea>
+        <textarea v-model="promptText" :placeholder="t.studio.promptHint"></textarea>
         <div class="composer-meta">
           <div class="composer-options">
             <div
