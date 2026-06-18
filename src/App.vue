@@ -22,7 +22,7 @@ const authMode = ref('password')
 const captcha = ref({ id: '', question: '', answer: '' })
 const authLoading = ref(false)
 const authError = ref('')
-const API_BASE = 'http://localhost:8080/api/v1'
+const API_BASE = '/api/v1'
 
 const locales = [
   { key: 'zh', label: '中文' },
