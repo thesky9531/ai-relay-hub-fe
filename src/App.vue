@@ -15,7 +15,14 @@ const isBatchMode = ref(false)
 const authForm = ref({
   phone: '',
   code: '',
+  username: '',
+  password: '',
 })
+const authMode = ref('password')
+const captcha = ref({ id: '', question: '', answer: '' })
+const authLoading = ref(false)
+const authError = ref('')
+const API_BASE = 'http://localhost:8080/api/v1'
 
 const locales = [
   { key: 'zh', label: '中文' },
@@ -401,6 +408,16 @@ const translations = {
       subtitle: '使用手机号接收验证码即可进入，后续可接入真实短信与账号体系。',
       login: '登录',
       codeLogin: '验证码登录',
+      passwordLogin: '密码登录',
+      username: '用户名',
+      usernamePlaceholder: '请输入用户名',
+      passwordLabel: '密码',
+      passwordPlaceholder: '请输入密码',
+      captchaLabel: '人机校验',
+      captchaPlaceholder: '请输入计算结果',
+      captchaRefresh: '点击刷新',
+      captchaLoading: '加载中...',
+      codeComingSoon: '验证码登录即将上线，请先使用密码登录',
       phone: '手机号',
       phonePlaceholder: '请输入手机号',
       code: '验证码',
@@ -546,6 +563,16 @@ const translations = {
       subtitle: 'Use your phone number and verification code to continue. Real SMS and account services can be connected later.',
       login: 'Log In',
       codeLogin: 'Code Login',
+      passwordLogin: 'Password Login',
+      username: 'Username',
+      usernamePlaceholder: 'Enter username',
+      passwordLabel: 'Password',
+      passwordPlaceholder: 'Enter password',
+      captchaLabel: 'Human verification',
+      captchaPlaceholder: 'Enter the result',
+      captchaRefresh: 'Click to refresh',
+      captchaLoading: 'Loading...',
+      codeComingSoon: 'Code login coming soon. Please use password login.',
       phone: 'Phone',
       phonePlaceholder: 'Enter phone number',
       code: 'Code',
@@ -691,6 +718,16 @@ const translations = {
       subtitle: '電話番号に届く認証コードでログインできます。後から実際の SMS 基盤に接続できます。',
       login: 'ログイン',
       codeLogin: '認証コード',
+      passwordLogin: 'パスワードログイン',
+      username: 'ユーザー名',
+      usernamePlaceholder: 'ユーザー名を入力',
+      passwordLabel: 'パスワード',
+      passwordPlaceholder: 'パスワードを入力',
+      captchaLabel: '人間確認',
+      captchaPlaceholder: '計算結果を入力',
+      captchaRefresh: 'クリックして更新',
+      captchaLoading: '読み込み中...',
+      codeComingSoon: '認証コードログインは近日公開。パスワードログインをご利用ください。',
       phone: '電話番号',
       phonePlaceholder: '電話番号を入力',
       code: '認証コード',
@@ -702,8 +739,15 @@ const translations = {
 }
 
 const t = computed(() => translations[activeLocale.value])
-const authTitle = computed(() => t.value.auth.titleLogin)
-const submitLabel = computed(() => t.value.actions.submitLogin)
+const authTitle = computed(() => authMode.value === 'password' ? t.value.auth.titleLogin : t.value.auth.codeLogin)
+const submitLabel = computed(() => authLoading.value ? '...' : t.value.actions.submitLogin)
+
+// 打开登录弹窗时自动拉取验证码
+watch(showAuthModal, (val) => {
+  if (val && authMode.value === 'password') {
+    fetchCaptcha()
+  }
+})
 const filteredStudioModels = computed(() => {
   if (activeStudioCategory.value === 'all' || activeStudioCategory.value === 'mine') return studioModels
   return studioModels.filter((model) => model.category === activeStudioCategory.value)
@@ -841,13 +885,12 @@ function requestInnerPage() {
     activeView.value = 'console'
     return
   }
-
   showAuthModal.value = true
 }
 
+// ── 验证码登录（暂为 mock）──
 function sendCode() {
   if (countdown.value > 0) return
-
   countdown.value = 60
   const timer = window.setInterval(() => {
     countdown.value -= 1
@@ -855,7 +898,86 @@ function sendCode() {
   }, 1000)
 }
 
+// ── 密码登录 ──
+async function fetchCaptcha() {
+  try {
+    const res = await fetch(`${API_BASE}/auth/captcha`)
+    const json = await res.json()
+    if (json.code === 0 && json.data) {
+      captcha.value.id = json.data.captcha_id
+      captcha.value.question = json.data.question
+      captcha.value.answer = ''
+      authError.value = ''
+    } else {
+      authError.value = '获取验证码失败'
+    }
+  } catch {
+    authError.value = '网络错误'
+  }
+}
+
+async function doPasswordLogin() {
+  if (!authForm.value.username || !authForm.value.password) {
+    authError.value = '请输入用户名和密码'
+    return
+  }
+  if (!captcha.value.answer) {
+    authError.value = '请完成人机校验'
+    return
+  }
+  authLoading.value = true
+  authError.value = ''
+  try {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: authForm.value.username,
+        password: authForm.value.password,
+        captcha_id: captcha.value.id,
+        captcha_answer: captcha.value.answer,
+      }),
+    })
+    const json = await res.json()
+    if (json.code === 0 && json.data) {
+      localStorage.setItem('hub_token', json.data.token)
+      isAuthenticated.value = true
+      activeView.value = 'console'
+      showAuthModal.value = false
+      resetAuthForm()
+    } else {
+      authError.value = json.message || '登录失败'
+      fetchCaptcha()
+    }
+  } catch {
+    authError.value = '网络错误，请稍后重试'
+    fetchCaptcha()
+  } finally {
+    authLoading.value = false
+  }
+}
+
+function resetAuthForm() {
+  authForm.value = { phone: '', code: '', username: '', password: '' }
+  captcha.value = { id: '', question: '', answer: '' }
+  authError.value = ''
+}
+
+function switchAuthMode(mode) {
+  authMode.value = mode
+  authError.value = ''
+  captcha.value.answer = ''
+  if (mode === 'password') {
+    fetchCaptcha()
+  }
+}
+
 function submitAuth() {
+  if (authMode.value === 'password') {
+    doPasswordLogin()
+    return
+  }
+  // 验证码登录（暂时 mock）
   isAuthenticated.value = true
   activeView.value = 'console'
   showAuthModal.value = false
@@ -874,7 +996,8 @@ function logout() {
   isAuthenticated.value = false
   activeView.value = 'home'
   isToolMenuOpen.value = false
-  authForm.value = { phone: '', code: '' }
+  resetAuthForm()
+  localStorage.removeItem('hub_token')
 }
 </script>
 
@@ -1481,23 +1604,64 @@ function logout() {
           <span>{{ t.auth.subtitle }}</span>
         </div>
 
-        <form class="auth-form" @submit.prevent="submitAuth">
+        <!-- Mode tabs -->
+        <div class="auth-tabs">
+          <button
+            :class="{ active: authMode === 'password' }"
+            @click="switchAuthMode('password')"
+          >{{ t.auth.passwordLogin }}</button>
+          <button
+            :class="{ active: authMode === 'code' }"
+            @click="switchAuthMode('code')"
+          >{{ t.auth.codeLogin }}</button>
+        </div>
+
+        <!-- Error message -->
+        <div v-if="authError" class="auth-error">{{ authError }}</div>
+
+        <!-- Password login form -->
+        <form v-if="authMode === 'password'" class="auth-form" @submit.prevent="submitAuth">
+          <label>
+            <span>{{ t.auth.username }}</span>
+            <input v-model="authForm.username" type="text" :placeholder="t.auth.usernamePlaceholder" required />
+          </label>
+
+          <label>
+            <span>{{ t.auth.passwordLabel }}</span>
+            <input v-model="authForm.password" type="password" :placeholder="t.auth.passwordPlaceholder" required />
+          </label>
+
+          <label>
+            <span>{{ t.auth.captchaLabel }}</span>
+            <div class="captcha-field">
+              <span class="captcha-question" @click="fetchCaptcha" :title="t.auth.captchaRefresh">
+                {{ captcha.question || t.auth.captchaLoading }}
+              </span>
+              <input v-model="captcha.answer" type="text" inputmode="numeric" :placeholder="t.auth.captchaPlaceholder" required />
+            </div>
+          </label>
+
+          <button class="button button-primary auth-submit" type="submit" :disabled="authLoading">{{ submitLabel }}</button>
+          <p class="auth-agreement">{{ t.auth.agreement }}</p>
+        </form>
+
+        <!-- Code login form (stub, disabled) -->
+        <form v-else class="auth-form" @submit.prevent="submitAuth">
+          <p class="auth-coming-soon">{{ t.auth.codeComingSoon }}</p>
           <label>
             <span>{{ t.auth.phone }}</span>
-            <input v-model="authForm.phone" type="tel" :placeholder="t.auth.phonePlaceholder" required />
+            <input v-model="authForm.phone" type="tel" :placeholder="t.auth.phonePlaceholder" disabled />
           </label>
 
           <label>
             <span>{{ t.auth.code }}</span>
             <div class="code-field">
-              <input v-model="authForm.code" type="text" inputmode="numeric" :placeholder="t.auth.codePlaceholder" required />
-              <button type="button" @click="sendCode">
-                {{ countdown > 0 ? `${countdown}s` : t.actions.sendCode }}
-              </button>
+              <input v-model="authForm.code" type="text" inputmode="numeric" :placeholder="t.auth.codePlaceholder" disabled />
+              <button type="button" disabled>{{ t.actions.sendCode }}</button>
             </div>
           </label>
 
-          <button class="button button-primary auth-submit" type="submit">{{ submitLabel }}</button>
+          <button class="button button-primary auth-submit" type="submit" disabled>{{ submitLabel }}</button>
           <p class="auth-agreement">{{ t.auth.agreement }}</p>
         </form>
       </section>

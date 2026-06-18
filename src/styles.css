@@ -766,6 +766,88 @@ button {
   width: 100%;
 }
 
+/* ── Auth mode tabs ── */
+.auth-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.auth-tabs button {
+  flex: 1;
+  padding: 12px 0;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: rgba(255,255,255,0.5);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.auth-tabs button.active {
+  color: #f7e7bd;
+  border-bottom-color: #d7b56d;
+}
+
+/* ── Auth error ── */
+.auth-error {
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ── Captcha field ── */
+.captcha-field {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.captcha-question {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 120px;
+  min-height: 50px;
+  padding: 0 16px;
+  border: 1px solid rgba(215, 181, 109, 0.34);
+  border-radius: 8px;
+  background: rgba(215, 181, 109, 0.08);
+  color: #f7e7bd;
+  font-size: 18px;
+  font-weight: 800;
+  font-family: monospace;
+  letter-spacing: 2px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+
+.captcha-question:hover {
+  background: rgba(215, 181, 109, 0.18);
+}
+
+/* ── Coming soon notice ── */
+.auth-coming-soon {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.4);
+  font-size: 13px;
+  text-align: center;
+}
+
 .auth-agreement {
   margin: -2px 0 0;
   color: var(--muted);
