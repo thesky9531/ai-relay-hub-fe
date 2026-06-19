@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { getModels, createGeneration, getGenerations, getAssets, getProfile, recharge, getCaptcha as fetchCaptchaApi, login as loginApi, setToken as saveToken } from './api/index.js'
 
 const activeLocale = ref('zh')
 const showAuthModal = ref(false)
@@ -39,9 +40,11 @@ const studioCategories = [
   { key: 'mine', icon: '●' },
 ]
 
-const studioModels = [
+const studioModels = ref([])
+const profile = ref({})
+const _unused_models = [
   {
-    id: 'sora',
+    id: '_sora',
     name: 'Sora-2 Pro',
     vendor: 'OpenAI',
     score: '91%',
@@ -749,11 +752,11 @@ watch(showAuthModal, (val) => {
   }
 })
 const filteredStudioModels = computed(() => {
-  if (activeStudioCategory.value === 'all' || activeStudioCategory.value === 'mine') return studioModels
-  return studioModels.filter((model) => model.category === activeStudioCategory.value)
+  if (activeStudioCategory.value === 'all' || activeStudioCategory.value === 'mine') return studioModels.value
+  return studioModels.value.filter((model) => model.category === activeStudioCategory.value)
 })
 const selectedStudioModel = computed(
-  () => studioModels.find((model) => model.id === activeStudioModel.value) || studioModels[0],
+  () => studioModels.value.find((model) => model.id === activeStudioModel.value) || studioModels.value[0],
 )
 
 const composerSelections = ref(
@@ -782,7 +785,14 @@ function handleDocumentClick(event) {
   }
 }
 
-onMounted(() => document.addEventListener('click', handleDocumentClick))
+onMounted(() => {
+  if (localStorage.getItem('hub_token')) {
+    isAuthenticated.value = true
+    activeView.value = 'console'
+    loadUserData()
+  }
+  document.addEventListener('click', handleDocumentClick)
+})
 onBeforeUnmount(() => document.removeEventListener('click', handleDocumentClick))
 
 const promptText = ref('')
@@ -790,7 +800,7 @@ const firstFrameInput = ref(null)
 const lastFrameInput = ref(null)
 const firstFramePreview = ref(null)
 const lastFramePreview = ref(null)
-const conversations = ref([...initialConversations])
+const conversations = ref([])
 
 function triggerFramePick(slot) {
   const target = slot === 'first' ? firstFrameInput.value : lastFrameInput.value
@@ -825,44 +835,28 @@ function currentParameterLabels() {
     .filter(Boolean)
 }
 
-function submitGeneration() {
+async function submitGeneration() {
   const text = promptText.value.trim()
   if (!text) return
   const model = selectedStudioModel.value
-  const id = `conv-${Date.now()}`
-  const conv = {
-    id,
-    promptText: text,
-    modelId: model.id,
-    modelName: model.name,
-    accentColor: model.accent,
-    assets: {
-      firstFrame: firstFramePreview.value,
-      lastFrame: lastFramePreview.value,
-    },
-    parameterLabels: currentParameterLabels(),
-    status: 'running',
-    progress: 0,
-    estimatedCredits: { min: 0.9531, max: 1.3863 },
-    createdAt: new Date().toISOString(),
-  }
-  conversations.value.unshift(conv)
-  promptText.value = ''
-  firstFramePreview.value = null
-  lastFramePreview.value = null
-  openComposerDropdown.value = null
-
-  window.setTimeout(() => {
-    const target = conversations.value.find((c) => c.id === id)
-    if (!target) return
-    target.status = 'completed'
-    target.result = {
-      type: model.category === 'image' ? 'image' : 'video',
-      thumbnailUrl: `https://picsum.photos/seed/${id}/640/360`,
-      durationSeconds: model.category === 'video' ? 4 : null,
+  if (!model) return
+  try {
+    const s = composerSelections.value
+    const params = {
+      audio_duration: (s.duration || '4s').replace('s', ''),
+      resolution: s.resolution || '720p',
+      ratio: s.ratio === 'auto' ? 'adaptive' : (s.ratio || '16:9'),
+      generate_audio: s.audio === 'off' ? 'false' : 'true',
     }
-    target.creditsConsumed = 1.12
-  }, 3500)
+    await createGeneration({ model_id: Number(model.id), prompt: text, params: JSON.stringify(params) })
+    promptText.value = ''
+    firstFramePreview.value = null
+    lastFramePreview.value = null
+    openComposerDropdown.value = null
+    await fetchConversations()
+  } catch (e) {
+    alert(e.message)
+  }
 }
 
 function formatConvTime(iso) {
@@ -883,6 +877,7 @@ watch(activeLocale, (locale) => {
 function requestInnerPage() {
   if (isAuthenticated.value) {
     activeView.value = 'console'
+    loadUserData()
     return
   }
   showAuthModal.value = true
@@ -901,18 +896,13 @@ function sendCode() {
 // ── 密码登录 ──
 async function fetchCaptcha() {
   try {
-    const res = await fetch(`${API_BASE}/auth/captcha`)
-    const json = await res.json()
-    if (json.code === 0 && json.data) {
-      captcha.value.id = json.data.captcha_id
-      captcha.value.question = json.data.question
-      captcha.value.answer = ''
-      authError.value = ''
-    } else {
-      authError.value = '获取验证码失败'
-    }
-  } catch {
-    authError.value = '网络错误'
+    const data = await fetchCaptchaApi()
+    captcha.value.id = data.captcha_id
+    captcha.value.question = data.question
+    captcha.value.answer = ''
+    authError.value = ''
+  } catch (e) {
+    authError.value = e.message
   }
 }
 
@@ -928,29 +918,20 @@ async function doPasswordLogin() {
   authLoading.value = true
   authError.value = ''
   try {
-    const res = await fetch(`${API_BASE}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: authForm.value.username,
-        password: authForm.value.password,
-        captcha_id: captcha.value.id,
-        captcha_answer: captcha.value.answer,
-      }),
+    const data = await loginApi({
+      username: authForm.value.username,
+      password: authForm.value.password,
+      captcha_id: captcha.value.id,
+      captcha_answer: captcha.value.answer,
     })
-    const json = await res.json()
-    if (json.code === 0 && json.data) {
-      localStorage.setItem('hub_token', json.data.token)
-      isAuthenticated.value = true
-      activeView.value = 'console'
-      showAuthModal.value = false
-      resetAuthForm()
-    } else {
-      authError.value = json.message || '登录失败'
-      fetchCaptcha()
-    }
-  } catch {
-    authError.value = '网络错误，请稍后重试'
+    saveToken(data.token)
+    isAuthenticated.value = true
+    activeView.value = 'console'
+    showAuthModal.value = false
+    resetAuthForm()
+    loadUserData()
+  } catch (e) {
+    authError.value = e.message || '登录失败'
     fetchCaptcha()
   } finally {
     authLoading.value = false
@@ -983,9 +964,10 @@ function submitAuth() {
   showAuthModal.value = false
 }
 
-function openAssetsPage() {
+async function openAssetsPage() {
   activeView.value = 'works'
   isToolMenuOpen.value = false
+  try { profile.value = await getProfile() } catch {}
 }
 
 function backToStudio() {
@@ -998,6 +980,56 @@ function logout() {
   isToolMenuOpen.value = false
   resetAuthForm()
   localStorage.removeItem('hub_token')
+}
+
+// ── 数据加载 ──
+async function loadUserData() {
+  try {
+    const [models, gens, prof] = await Promise.all([getModels(), getGenerations(), getProfile()])
+    studioModels.value = (models || []).map(m => ({
+      id: String(m.id),
+      name: m.name,
+      vendor: m.vendor,
+      score: m.cost ? `${m.cost} cr` : 'N/A',
+      category: m.category,
+      accent: m.category === 'video' ? '#5a7bff' : m.category === 'image' ? '#e85d75' : '#7c5cfc',
+      desc: { zh: `${m.vendor} · ${m.category}`, en: `${m.vendor} · ${m.category}`, ja: `${m.vendor} · ${m.category}` },
+    }))
+    conversations.value = (gens || []).map(g => ({
+      id: String(g.id),
+      promptText: g.prompt,
+      modelId: String(g.model_id),
+      modelName: '',
+      accentColor: '#5a7bff',
+      assets: { firstFrame: null, lastFrame: null },
+      parameterLabels: [],
+      status: g.status === 'done' ? 'completed' : g.status === 'failed' ? 'failed' : 'running',
+      estimatedCredits: g.status === 'running' ? { min: '-', max: '-' } : undefined,
+	      result: g.result_url ? { type: g.result_url.includes('.mp4') ? 'video' : 'image', thumbnailUrl: g.result_url, durationSeconds: g.result_url.includes('.mp4') ? 4 : null } : undefined,
+      creditsConsumed: g.cost,
+      createdAt: g.created_at,
+    }))
+    profile.value = prof || {}
+  } catch { /* ignore */ }
+}
+async function fetchConversations() {
+  try {
+    const gens = await getGenerations()
+    conversations.value = (gens || []).map(g => ({
+      id: String(g.id),
+      promptText: g.prompt,
+      modelId: String(g.model_id),
+      modelName: '',
+      accentColor: '#5a7bff',
+      assets: { firstFrame: null, lastFrame: null },
+      parameterLabels: [],
+      status: g.status === 'done' ? 'completed' : g.status === 'failed' ? 'failed' : 'running',
+      estimatedCredits: g.status === 'running' ? { min: '-', max: '-' } : undefined,
+	      result: g.result_url ? { type: g.result_url.includes('.mp4') ? 'video' : 'image', thumbnailUrl: g.result_url, durationSeconds: g.result_url.includes('.mp4') ? 4 : null } : undefined,
+      creditsConsumed: g.cost,
+      createdAt: g.created_at,
+    }))
+  } catch { /* ignore */ }
 }
 </script>
 
@@ -1334,7 +1366,7 @@ function logout() {
                   <span></span><span></span><span></span>
                 </div>
                 <span>
-                  生成中… 预计 ⚡{{ conv.estimatedCredits.min }}~{{ conv.estimatedCredits.max }}
+                  生成中… 预计 ⚡{{ conv.estimatedCredits?.min || '...' }}~{{ conv.estimatedCredits?.max || '...' }}
                 </span>
               </div>
               <div v-else-if="conv.status === 'failed'" class="conv-failed">
@@ -1345,8 +1377,8 @@ function logout() {
                 class="conv-result"
               >
                 <div class="conv-thumb" :class="`type-${conv.result.type}`">
-                  <img :src="conv.result.thumbnailUrl" :alt="`${conv.modelName} result`" />
-                  <span v-if="conv.result.type === 'video'" class="conv-thumb-play">▶</span>
+                  <video v-if="conv.result.type === 'video'" :src="conv.result.thumbnailUrl" controls style="width:100%;max-height:300px;border-radius:8px"></video>
+                  <img v-else :src="conv.result.thumbnailUrl" :alt="`${conv.modelName} result`" />
                   <span
                     v-if="conv.result.durationSeconds"
                     class="conv-thumb-duration"
