@@ -1,12 +1,11 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { getModels, createGeneration, getGenerations, getAssets, getProfile, recharge, getCaptcha as fetchCaptchaApi, login as loginApi, setToken as saveToken } from './api/index.js'
+import { getModels, createGeneration, getGenerations, getAssets, getProfile, recharge, login as loginApi, setToken as saveToken } from './api/index.js'
 
 const activeLocale = ref('zh')
 const showAuthModal = ref(false)
 const isAuthenticated = ref(false)
 const activeView = ref('home')
-const countdown = ref(0)
 const activeStudioCategory = ref('video')
 const activeStudioModel = ref('jimeng')
 const isToolMenuOpen = ref(false)
@@ -14,13 +13,9 @@ const isSidebarCollapsed = ref(false)
 const activeAssetTab = ref(0)
 const isBatchMode = ref(false)
 const authForm = ref({
-  phone: '',
-  code: '',
   username: '',
   password: '',
 })
-const authMode = ref('password')
-const captcha = ref({ id: '', question: '', answer: '' })
 const authLoading = ref(false)
 const authError = ref('')
 const API_BASE = '/api/v1'
@@ -32,7 +27,6 @@ const locales = [
 ]
 
 const studioCategories = [
-  { key: 'all', icon: '◇' },
   { key: 'chat', icon: '◌' },
   { key: 'image', icon: '▧' },
   { key: 'video', icon: '▶' },
@@ -121,56 +115,9 @@ const _unused_models = [
       ja: '人物、商品、ストーリー素材の拡張に向いたマルチモーダル参照生成。',
     },
   },
-  {
-    id: 'midjourney',
-    name: 'Midjourney V7',
-    vendor: 'Midjourney',
-    score: '98%',
-    category: 'image',
-    accent: '#d7b56d',
-    desc: {
-      zh: '商业视觉、海报与概念图生成。',
-      en: 'Commercial visuals, posters and concept imagery.',
-      ja: '商用ビジュアル、ポスター、コンセプト画像生成。',
-    },
-  },
 ]
 
 const composerOptionGroups = [
-  {
-    key: 'quality',
-    icon: '✦',
-    options: [
-      { key: 'best', label: { zh: '综合最优', en: 'Balanced', ja: '総合最適' } },
-      { key: 'high', label: { zh: '高质量', en: 'High Quality', ja: '高品質' } },
-      { key: 'fast', label: { zh: '高速度', en: 'Fast', ja: '高速' } },
-      { key: 'draft', label: { zh: '草稿预览', en: 'Draft', ja: 'ドラフト' } },
-    ],
-    default: 'best',
-  },
-  {
-    key: 'count',
-    icon: '▱',
-    options: [
-      { key: '1', label: { zh: '1条', en: '1 clip', ja: '1件' } },
-      { key: '2', label: { zh: '2条', en: '2 clips', ja: '2件' } },
-      { key: '3', label: { zh: '3条', en: '3 clips', ja: '3件' } },
-      { key: '4', label: { zh: '4条', en: '4 clips', ja: '4件' } },
-    ],
-    default: '1',
-  },
-  {
-    key: 'frame',
-    icon: '▧',
-    options: [
-      { key: 'first', label: { zh: '首帧', en: 'First frame', ja: '先頭フレーム' } },
-      { key: 'last', label: { zh: '尾帧', en: 'Last frame', ja: '末尾フレーム' } },
-      { key: 'both', label: { zh: '首尾帧', en: 'First & last', ja: '首尾フレーム' } },
-      { key: 'keyframe', label: { zh: '关键帧', en: 'Keyframes', ja: 'キーフレーム' } },
-      { key: 'none', label: { zh: '关闭', en: 'Off', ja: 'オフ' } },
-    ],
-    default: 'both',
-  },
   {
     key: 'duration',
     icon: '◷',
@@ -255,22 +202,6 @@ const initialConversations = [
     creditsConsumed: 1.16,
     createdAt: '2026-06-17T08:30:00Z',
   },
-  {
-    id: 'conv-1000',
-    promptText: '新品电商主图，极简白色背景，商品居中悬浮，柔和顶光，少量阴影。',
-    modelId: 'midjourney',
-    modelName: 'Midjourney V7',
-    accentColor: '#d7b56d',
-    assets: { firstFrame: null, lastFrame: null },
-    parameterLabels: ['综合最优', '方形 1:1', '2K'],
-    status: 'completed',
-    result: {
-      type: 'image',
-      thumbnailUrl: 'https://picsum.photos/seed/conv-1000-r/600/600',
-    },
-    creditsConsumed: 0.42,
-    createdAt: '2026-06-17T08:00:00Z',
-  },
 ]
 
 const translations = {
@@ -287,7 +218,6 @@ const translations = {
       models: '查看支持模型',
       reuse: '复用',
       close: '关闭',
-      sendCode: '获取验证码',
       resend: '重新发送',
       submitLogin: '登录并进入',
       logout: '退出',
@@ -302,7 +232,6 @@ const translations = {
     models: [
       { name: 'Veo', type: '视频生成', status: '推荐', cost: '18 credits' },
       { name: 'Kling', type: '图生视频', status: '热门', cost: '12 credits' },
-      { name: 'Midjourney', type: '图片生成', status: '创意', cost: '6 credits' },
     ],
     visual: {
       route: '模型路由',
@@ -352,16 +281,13 @@ const translations = {
       collapse: '收起',
       expand: '展开',
       subtitle: 'AI 大模型聚合平台',
-      topTabs: ['大模型', '智能体', '灵感广场'],
       categories: {
-        all: '全部',
         chat: '聊天',
         image: '图片',
         video: '视频',
         audio: '音频',
         mine: '我的',
       },
-      search: '搜索模型或功能...',
       taskList: '任务列表',
       inspiration: '灵感',
       selectedModel: '当前模型',
@@ -410,21 +336,11 @@ const translations = {
       titleLogin: '登录后进入创作控制台',
       subtitle: '使用手机号接收验证码即可进入，后续可接入真实短信与账号体系。',
       login: '登录',
-      codeLogin: '验证码登录',
       passwordLogin: '密码登录',
       username: '用户名',
       usernamePlaceholder: '请输入用户名',
       passwordLabel: '密码',
       passwordPlaceholder: '请输入密码',
-      captchaLabel: '人机校验',
-      captchaPlaceholder: '请输入计算结果',
-      captchaRefresh: '点击刷新',
-      captchaLoading: '加载中...',
-      codeComingSoon: '验证码登录即将上线，请先使用密码登录',
-      phone: '手机号',
-      phonePlaceholder: '请输入手机号',
-      code: '验证码',
-      codePlaceholder: '6 位验证码',
       agreement: '登录或注册即代表你同意平台服务条款与隐私政策。',
       success: '已进入控制台',
     },
@@ -442,7 +358,6 @@ const translations = {
       models: 'View Models',
       reuse: 'Reuse',
       close: 'Close',
-      sendCode: 'Send Code',
       resend: 'Resend',
       submitLogin: 'Log In',
       logout: 'Log Out',
@@ -457,7 +372,6 @@ const translations = {
     models: [
       { name: 'Veo', type: 'Video Generation', status: 'Recommended', cost: '18 credits' },
       { name: 'Kling', type: 'Image to Video', status: 'Trending', cost: '12 credits' },
-      { name: 'Midjourney', type: 'Image Generation', status: 'Creative', cost: '6 credits' },
     ],
     visual: {
       route: 'Model Routing',
@@ -507,16 +421,13 @@ const translations = {
       collapse: 'Collapse',
       expand: 'Expand',
       subtitle: 'AI model aggregation platform',
-      topTabs: ['Models', 'Agents', 'Inspiration'],
       categories: {
-        all: 'All',
         chat: 'Chat',
         image: 'Image',
         video: 'Video',
         audio: 'Audio',
         mine: 'Mine',
       },
-      search: 'Search models or tools...',
       taskList: 'Tasks',
       inspiration: 'Ideas',
       selectedModel: 'Selected model',
@@ -565,21 +476,11 @@ const translations = {
       titleLogin: 'Log in to open the creation console',
       subtitle: 'Use your phone number and verification code to continue. Real SMS and account services can be connected later.',
       login: 'Log In',
-      codeLogin: 'Code Login',
       passwordLogin: 'Password Login',
       username: 'Username',
       usernamePlaceholder: 'Enter username',
       passwordLabel: 'Password',
       passwordPlaceholder: 'Enter password',
-      captchaLabel: 'Human verification',
-      captchaPlaceholder: 'Enter the result',
-      captchaRefresh: 'Click to refresh',
-      captchaLoading: 'Loading...',
-      codeComingSoon: 'Code login coming soon. Please use password login.',
-      phone: 'Phone',
-      phonePlaceholder: 'Enter phone number',
-      code: 'Code',
-      codePlaceholder: '6-digit code',
       agreement: 'By continuing, you agree to the platform terms and privacy policy.',
       success: 'Console opened',
     },
@@ -597,7 +498,6 @@ const translations = {
       models: '対応モデルを見る',
       reuse: '再利用',
       close: '閉じる',
-      sendCode: 'コード送信',
       resend: '再送信',
       submitLogin: 'ログイン',
       logout: 'ログアウト',
@@ -612,7 +512,6 @@ const translations = {
     models: [
       { name: 'Veo', type: '動画生成', status: 'おすすめ', cost: '18 credits' },
       { name: 'Kling', type: '画像から動画', status: '人気', cost: '12 credits' },
-      { name: 'Midjourney', type: '画像生成', status: 'クリエイティブ', cost: '6 credits' },
     ],
     visual: {
       route: 'モデルルーティング',
@@ -662,16 +561,13 @@ const translations = {
       collapse: '折りたたむ',
       expand: '展開',
       subtitle: 'AI 大規模モデル統合プラットフォーム',
-      topTabs: ['モデル', 'エージェント', 'インスピレーション'],
       categories: {
-        all: 'すべて',
         chat: 'チャット',
         image: '画像',
         video: '動画',
         audio: '音声',
         mine: '自分',
       },
-      search: 'モデルや機能を検索...',
       taskList: 'タスク',
       inspiration: 'ヒント',
       selectedModel: '選択中のモデル',
@@ -720,21 +616,11 @@ const translations = {
       titleLogin: 'ログインして制作コンソールへ',
       subtitle: '電話番号に届く認証コードでログインできます。後から実際の SMS 基盤に接続できます。',
       login: 'ログイン',
-      codeLogin: '認証コード',
       passwordLogin: 'パスワードログイン',
       username: 'ユーザー名',
       usernamePlaceholder: 'ユーザー名を入力',
       passwordLabel: 'パスワード',
       passwordPlaceholder: 'パスワードを入力',
-      captchaLabel: '人間確認',
-      captchaPlaceholder: '計算結果を入力',
-      captchaRefresh: 'クリックして更新',
-      captchaLoading: '読み込み中...',
-      codeComingSoon: '認証コードログインは近日公開。パスワードログインをご利用ください。',
-      phone: '電話番号',
-      phonePlaceholder: '電話番号を入力',
-      code: '認証コード',
-      codePlaceholder: '6 桁のコード',
       agreement: '続行すると、利用規約とプライバシーポリシーに同意したものとみなされます。',
       success: 'コンソールを開きました',
     },
@@ -742,19 +628,10 @@ const translations = {
 }
 
 const t = computed(() => translations[activeLocale.value])
-const authTitle = computed(() => authMode.value === 'password' ? t.value.auth.titleLogin : t.value.auth.codeLogin)
+const authTitle = computed(() => t.value.auth.titleLogin)
 const submitLabel = computed(() => authLoading.value ? '...' : t.value.actions.submitLogin)
 
-// 打开登录弹窗时自动拉取验证码
-watch(showAuthModal, (val) => {
-  if (val && authMode.value === 'password') {
-    fetchCaptcha()
-  }
-})
-const filteredStudioModels = computed(() => {
-  if (activeStudioCategory.value === 'all' || activeStudioCategory.value === 'mine') return studioModels.value
-  return studioModels.value.filter((model) => model.category === activeStudioCategory.value)
-})
+const filteredStudioModels = computed(() => studioModels.value)
 const selectedStudioModel = computed(
   () => studioModels.value.find((model) => model.id === activeStudioModel.value) || studioModels.value[0],
 )
@@ -785,45 +662,27 @@ function handleDocumentClick(event) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (localStorage.getItem('hub_token')) {
-    isAuthenticated.value = true
-    activeView.value = 'console'
-    loadUserData()
+    try {
+      await getProfile() // 验证 token 是否还有效
+      isAuthenticated.value = true
+      activeView.value = 'console'
+      loadUserData()
+    } catch {
+      // 验证失败（token 过期 / 后端挂了）→ 清除 token 显示登录
+      localStorage.removeItem('hub_token')
+      showAuthModal.value = true
+    }
+  } else {
+    showAuthModal.value = true
   }
   document.addEventListener('click', handleDocumentClick)
 })
 onBeforeUnmount(() => document.removeEventListener('click', handleDocumentClick))
 
 const promptText = ref('')
-const firstFrameInput = ref(null)
-const lastFrameInput = ref(null)
-const firstFramePreview = ref(null)
-const lastFramePreview = ref(null)
 const conversations = ref([])
-
-function triggerFramePick(slot) {
-  const target = slot === 'first' ? firstFrameInput.value : lastFrameInput.value
-  target?.click()
-}
-
-function onPickFrame(slot, event) {
-  const file = event.target.files?.[0]
-  if (!file) return
-  const reader = new FileReader()
-  reader.onload = () => {
-    if (slot === 'first') firstFramePreview.value = reader.result
-    else lastFramePreview.value = reader.result
-  }
-  reader.readAsDataURL(file)
-  event.target.value = ''
-}
-
-function clearFrame(slot, event) {
-  event.stopPropagation()
-  if (slot === 'first') firstFramePreview.value = null
-  else lastFramePreview.value = null
-}
 
 function currentParameterLabels() {
   return composerOptionGroups
@@ -850,8 +709,6 @@ async function submitGeneration() {
     }
     await createGeneration({ model_id: Number(model.id), prompt: text, params: JSON.stringify(params) })
     promptText.value = ''
-    firstFramePreview.value = null
-    lastFramePreview.value = null
     openComposerDropdown.value = null
     await fetchConversations()
   } catch (e) {
@@ -883,36 +740,10 @@ function requestInnerPage() {
   showAuthModal.value = true
 }
 
-// ── 验证码登录（暂为 mock）──
-function sendCode() {
-  if (countdown.value > 0) return
-  countdown.value = 60
-  const timer = window.setInterval(() => {
-    countdown.value -= 1
-    if (countdown.value <= 0) window.clearInterval(timer)
-  }, 1000)
-}
-
 // ── 密码登录 ──
-async function fetchCaptcha() {
-  try {
-    const data = await fetchCaptchaApi()
-    captcha.value.id = data.captcha_id
-    captcha.value.question = data.question
-    captcha.value.answer = ''
-    authError.value = ''
-  } catch (e) {
-    authError.value = e.message
-  }
-}
-
 async function doPasswordLogin() {
   if (!authForm.value.username || !authForm.value.password) {
     authError.value = '请输入用户名和密码'
-    return
-  }
-  if (!captcha.value.answer) {
-    authError.value = '请完成人机校验'
     return
   }
   authLoading.value = true
@@ -921,8 +752,6 @@ async function doPasswordLogin() {
     const data = await loginApi({
       username: authForm.value.username,
       password: authForm.value.password,
-      captcha_id: captcha.value.id,
-      captcha_answer: captcha.value.answer,
     })
     saveToken(data.token)
     isAuthenticated.value = true
@@ -932,7 +761,6 @@ async function doPasswordLogin() {
     loadUserData()
   } catch (e) {
     authError.value = e.message || '登录失败'
-    fetchCaptcha()
   } finally {
     authLoading.value = false
   }
@@ -940,28 +768,11 @@ async function doPasswordLogin() {
 
 function resetAuthForm() {
   authForm.value = { phone: '', code: '', username: '', password: '' }
-  captcha.value = { id: '', question: '', answer: '' }
   authError.value = ''
-}
-
-function switchAuthMode(mode) {
-  authMode.value = mode
-  authError.value = ''
-  captcha.value.answer = ''
-  if (mode === 'password') {
-    fetchCaptcha()
-  }
 }
 
 function submitAuth() {
-  if (authMode.value === 'password') {
-    doPasswordLogin()
-    return
-  }
-  // 验证码登录（暂时 mock）
-  isAuthenticated.value = true
-  activeView.value = 'console'
-  showAuthModal.value = false
+  doPasswordLogin()
 }
 
 async function openAssetsPage() {
@@ -1178,58 +989,7 @@ async function fetchConversations() {
         </button>
       </div>
 
-      <div class="studio-top-tabs">
-        <button v-for="(tab, index) in t.studio.topTabs" :key="tab" type="button" :class="{ active: index === 0 }">
-          <span>
-            <svg v-if="index === 0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z" />
-              <path d="m7 16.5-4.74-2.85" />
-              <path d="m7 16.5 5-3" />
-              <path d="M7 16.5v5.17" />
-              <path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z" />
-              <path d="m17 16.5-5-3" />
-              <path d="m17 16.5 4.74-2.85" />
-              <path d="M17 16.5v5.17" />
-              <path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z" />
-              <path d="M12 8 7.26 5.15" />
-              <path d="m12 8 4.74-2.85" />
-              <path d="M12 13.5V8" />
-            </svg>
-            <svg v-else-if="index === 1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M12 8V4H8" />
-              <rect width="16" height="12" x="4" y="8" rx="2" />
-              <path d="M2 14h2" />
-              <path d="M20 14h2" />
-              <path d="M15 13v2" />
-              <path d="M9 13v2" />
-            </svg>
-            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z" />
-              <path d="M20 2v4" />
-              <path d="M22 4h-4" />
-              <circle cx="4" cy="20" r="2" />
-            </svg>
-          </span>
-          {{ tab }}
-        </button>
-      </div>
 
-      <div class="studio-category-tabs">
-        <button
-          v-for="category in studioCategories"
-          :key="category.key"
-          type="button"
-          :class="{ active: activeStudioCategory === category.key }"
-          @click="activeStudioCategory = category.key"
-        >
-          {{ t.studio.categories[category.key] }}
-        </button>
-      </div>
-
-      <label class="studio-search">
-        <span>⌕</span>
-        <input type="search" :placeholder="t.studio.search" />
-      </label>
 
       <div class="studio-model-list">
         <button
@@ -1330,20 +1090,6 @@ async function fetchConversations() {
           </header>
 
           <div class="conv-body">
-            <div
-              v-if="conv.assets.firstFrame || conv.assets.lastFrame"
-              class="conv-frames"
-            >
-              <figure v-if="conv.assets.firstFrame">
-                <img :src="conv.assets.firstFrame" alt="first frame" />
-                <figcaption>首帧</figcaption>
-              </figure>
-              <span v-if="conv.assets.firstFrame && conv.assets.lastFrame">→</span>
-              <figure v-if="conv.assets.lastFrame">
-                <img :src="conv.assets.lastFrame" alt="last frame" />
-                <figcaption>尾帧</figcaption>
-              </figure>
-            </div>
             <p class="conv-prompt">{{ conv.promptText }}</p>
             <div class="conv-params">
               <span v-for="label in conv.parameterLabels" :key="label">{{ label }}</span>
@@ -1396,55 +1142,6 @@ async function fetchConversations() {
       </div>
 
       <form class="studio-composer" @submit.prevent="submitGeneration">
-        <div class="composer-assets">
-          <input
-            ref="firstFrameInput"
-            type="file"
-            hidden
-            accept="image/png,image/jpeg,image/webp"
-            @change="onPickFrame('first', $event)"
-          />
-          <input
-            ref="lastFrameInput"
-            type="file"
-            hidden
-            accept="image/png,image/jpeg,image/webp"
-            @change="onPickFrame('last', $event)"
-          />
-          <button
-            type="button"
-            :class="{ 'has-preview': firstFramePreview }"
-            @click="triggerFramePick('first')"
-          >
-            <img v-if="firstFramePreview" :src="firstFramePreview" alt="" />
-            <template v-else>
-              <span>＋</span>
-              {{ t.studio.firstFrame }}
-            </template>
-            <span
-              v-if="firstFramePreview"
-              class="composer-clear"
-              @click="clearFrame('first', $event)"
-            >×</span>
-          </button>
-          <b>→</b>
-          <button
-            type="button"
-            :class="{ 'has-preview': lastFramePreview }"
-            @click="triggerFramePick('last')"
-          >
-            <img v-if="lastFramePreview" :src="lastFramePreview" alt="" />
-            <template v-else>
-              <span>＋</span>
-              {{ t.studio.lastFrame }}
-            </template>
-            <span
-              v-if="lastFramePreview"
-              class="composer-clear"
-              @click="clearFrame('last', $event)"
-            >×</span>
-          </button>
-        </div>
         <textarea v-model="promptText" :placeholder="t.studio.promptHint"></textarea>
         <div class="composer-meta">
           <div class="composer-options">
@@ -1452,7 +1149,6 @@ async function fetchConversations() {
               v-for="group in composerOptionGroups"
               :key="group.key"
               class="composer-option-wrap"
-              :class="{ accent: group.key === 'count' }"
             >
               <button
                 type="button"
@@ -1481,149 +1177,7 @@ async function fetchConversations() {
     </section>
   </main>
 
-  <main v-else class="page-shell">
-    <header class="site-header">
-      <a class="brand" href="#" aria-label="AI Relay Hub home">
-        <span class="brand-mark">A</span>
-        <span>{{ t.pageTitle }}</span>
-      </a>
-
-      <nav class="nav-links" aria-label="Main navigation">
-        <a href="#models">{{ t.nav.models }}</a>
-        <a href="#archive">{{ t.nav.archive }}</a>
-        <a href="#credits">{{ t.nav.credits }}</a>
-      </nav>
-
-      <div class="header-tools">
-        <div class="language-switcher" aria-label="Language">
-          <button
-            v-for="locale in locales"
-            :key="locale.key"
-            type="button"
-            :class="{ active: activeLocale === locale.key }"
-            @click="activeLocale = locale.key"
-          >
-            {{ locale.label }}
-          </button>
-        </div>
-        <button v-if="isAuthenticated" class="header-action subtle" type="button" @click="logout">
-          {{ t.actions.logout }}
-        </button>
-        <button v-else class="header-action" type="button" @click="requestInnerPage">
-          {{ t.actions.enter }}
-        </button>
-      </div>
-    </header>
-
-    <section class="hero-section" id="start">
-      <div class="hero-copy">
-        <p class="section-kicker">{{ t.hero.kicker }}</p>
-        <h1>{{ t.hero.title }}</h1>
-        <p class="hero-subtitle">{{ t.hero.subtitle }}</p>
-
-        <div class="hero-actions">
-          <button class="button button-primary" type="button" @click="requestInnerPage">
-            {{ t.actions.start }}
-          </button>
-          <a class="button button-secondary" href="#models">{{ t.actions.models }}</a>
-        </div>
-
-        <div class="capability-strip" aria-label="Capabilities">
-          <span v-for="capability in t.capabilities" :key="capability">{{ capability }}</span>
-        </div>
-      </div>
-
-      <div class="product-visual" aria-label="AI generation workspace preview">
-        <div class="visual-topbar">
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
-
-        <div class="visual-grid">
-          <section class="visual-panel model-panel" id="models">
-            <div class="panel-heading">
-              <span>{{ t.visual.route }}</span>
-              <strong>99.8%</strong>
-            </div>
-            <div class="model-list">
-              <article v-for="model in t.models" :key="model.name" class="model-row">
-                <div>
-                  <strong>{{ model.name }}</strong>
-                  <span>{{ model.type }}</span>
-                </div>
-                <p>{{ model.status }}</p>
-                <em>{{ model.cost }}</em>
-              </article>
-            </div>
-          </section>
-
-          <section class="visual-panel prompt-panel">
-            <div class="panel-heading">
-              <span>{{ t.visual.prompt }}</span>
-              <strong>Live</strong>
-            </div>
-            <p class="prompt-text">{{ t.visual.promptText }}</p>
-            <div class="generation-meter">
-              <span></span>
-            </div>
-          </section>
-
-          <section class="visual-panel output-panel" id="archive">
-            <div class="art-board">
-              <span class="art-shape art-shape-one"></span>
-              <span class="art-shape art-shape-two"></span>
-              <span class="art-shape art-shape-three"></span>
-            </div>
-            <div>
-              <strong>{{ t.visual.archiveTitle }}</strong>
-              <p>{{ t.visual.archiveDesc }}</p>
-            </div>
-          </section>
-
-          <section class="visual-panel credit-panel" id="credits">
-            <div class="panel-heading">
-              <span>{{ t.visual.credits }}</span>
-              <strong>32,480</strong>
-            </div>
-            <div class="credit-chart">
-              <span style="height: 44%"></span>
-              <span style="height: 68%"></span>
-              <span style="height: 52%"></span>
-              <span style="height: 84%"></span>
-              <span style="height: 60%"></span>
-            </div>
-          </section>
-        </div>
-      </div>
-    </section>
-
-    <section class="benefits-section" aria-label="Core benefits">
-      <article v-for="benefit in t.benefits" :key="benefit.title" class="benefit-card">
-        <p>{{ benefit.eyebrow }}</p>
-        <h2>{{ benefit.title }}</h2>
-        <span>{{ benefit.text }}</span>
-      </article>
-    </section>
-
-    <section class="workspace-section" id="workspace">
-      <div class="workspace-copy">
-        <p class="section-kicker">{{ t.workspace.kicker }}</p>
-        <h2>{{ t.workspace.title }}</h2>
-      </div>
-
-      <div class="work-list">
-        <article v-for="work in t.works" :key="work.title" class="work-item">
-          <span></span>
-          <div>
-            <strong>{{ work.title }}</strong>
-            <p>{{ work.meta }}</p>
-          </div>
-          <button type="button" @click="requestInnerPage">{{ t.actions.reuse }}</button>
-        </article>
-      </div>
-    </section>
-
+    <!-- Auth modal (shown when not authenticated) -->
     <div v-if="showAuthModal" class="modal-backdrop" role="presentation" @click.self="showAuthModal = false">
       <section class="auth-modal" role="dialog" aria-modal="true" :aria-label="authTitle">
         <button class="modal-close" type="button" :aria-label="t.actions.close" @click="showAuthModal = false">
@@ -1636,23 +1190,11 @@ async function fetchConversations() {
           <span>{{ t.auth.subtitle }}</span>
         </div>
 
-        <!-- Mode tabs -->
-        <div class="auth-tabs">
-          <button
-            :class="{ active: authMode === 'password' }"
-            @click="switchAuthMode('password')"
-          >{{ t.auth.passwordLogin }}</button>
-          <button
-            :class="{ active: authMode === 'code' }"
-            @click="switchAuthMode('code')"
-          >{{ t.auth.codeLogin }}</button>
-        </div>
-
         <!-- Error message -->
         <div v-if="authError" class="auth-error">{{ authError }}</div>
 
         <!-- Password login form -->
-        <form v-if="authMode === 'password'" class="auth-form" @submit.prevent="submitAuth">
+        <form class="auth-form" @submit.prevent="submitAuth">
           <label>
             <span>{{ t.auth.username }}</span>
             <input v-model="authForm.username" type="text" :placeholder="t.auth.usernamePlaceholder" required />
@@ -1663,40 +1205,9 @@ async function fetchConversations() {
             <input v-model="authForm.password" type="password" :placeholder="t.auth.passwordPlaceholder" required />
           </label>
 
-          <label>
-            <span>{{ t.auth.captchaLabel }}</span>
-            <div class="captcha-field">
-              <span class="captcha-question" @click="fetchCaptcha" :title="t.auth.captchaRefresh">
-                {{ captcha.question || t.auth.captchaLoading }}
-              </span>
-              <input v-model="captcha.answer" type="text" inputmode="numeric" :placeholder="t.auth.captchaPlaceholder" required />
-            </div>
-          </label>
-
           <button class="button button-primary auth-submit" type="submit" :disabled="authLoading">{{ submitLabel }}</button>
-          <p class="auth-agreement">{{ t.auth.agreement }}</p>
-        </form>
-
-        <!-- Code login form (stub, disabled) -->
-        <form v-else class="auth-form" @submit.prevent="submitAuth">
-          <p class="auth-coming-soon">{{ t.auth.codeComingSoon }}</p>
-          <label>
-            <span>{{ t.auth.phone }}</span>
-            <input v-model="authForm.phone" type="tel" :placeholder="t.auth.phonePlaceholder" disabled />
-          </label>
-
-          <label>
-            <span>{{ t.auth.code }}</span>
-            <div class="code-field">
-              <input v-model="authForm.code" type="text" inputmode="numeric" :placeholder="t.auth.codePlaceholder" disabled />
-              <button type="button" disabled>{{ t.actions.sendCode }}</button>
-            </div>
-          </label>
-
-          <button class="button button-primary auth-submit" type="submit" disabled>{{ submitLabel }}</button>
           <p class="auth-agreement">{{ t.auth.agreement }}</p>
         </form>
       </section>
     </div>
-  </main>
-</template>
+  </template>

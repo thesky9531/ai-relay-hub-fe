@@ -12,6 +12,14 @@ async function request(path, options = {}) {
   }
   const res = await fetch(`${BASE}${path}`, { ...options, headers })
   const json = await res.json()
+
+  // 401: token 过期或无效 → 清除并刷新回首页
+  if (res.status === 401) {
+    clearToken()
+    window.location.reload()
+    return
+  }
+
   if (json.code !== 0) {
     throw new Error(json.message || '请求失败')
   }
@@ -19,9 +27,6 @@ async function request(path, options = {}) {
 }
 
 // Auth
-export function getCaptcha() {
-  return request('/auth/captcha')
-}
 export function login(data) {
   return request('/auth/login', { method: 'POST', body: JSON.stringify(data) })
 }
