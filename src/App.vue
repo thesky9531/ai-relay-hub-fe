@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { getModels, createGeneration, getGenerations, getAssets, getProfile, recharge, login as loginApi, setToken as saveToken } from './api/index.js'
+import { getModels, createGeneration, getGenerations, getAssets, getProfile, recharge, login as loginApi, setToken as saveToken, uploadAsset } from './api/index.js'
 
 const activeLocale = ref('zh')
 const showAuthModal = ref(false)
@@ -8,7 +8,6 @@ const isAuthenticated = ref(false)
 const activeView = ref('home')
 const activeStudioCategory = ref('video')
 const activeStudioModel = ref('jimeng')
-const isToolMenuOpen = ref(false)
 const isSidebarCollapsed = ref(false)
 const activeAssetTab = ref(0)
 const isBatchMode = ref(false)
@@ -221,6 +220,7 @@ const translations = {
       resend: '重新发送',
       submitLogin: '登录并进入',
       logout: '退出',
+      download: '下载',
     },
     hero: {
       kicker: 'Unified AI Creation Gateway',
@@ -294,6 +294,8 @@ const translations = {
       promptHint: '描述视频内容、动作和场景，可上传首帧或尾帧图片控制视频生成。支持 4-12 秒有声视频。',
       firstFrame: '首帧',
       lastFrame: '尾帧',
+      referenceImage: '上传参考图',
+      removeReference: '移除参考图',
       send: '生成',
       recharge: '充值',
       online: '在线',
@@ -361,6 +363,7 @@ const translations = {
       resend: 'Resend',
       submitLogin: 'Log In',
       logout: 'Log Out',
+      download: 'Download',
     },
     hero: {
       kicker: 'Unified AI Creation Gateway',
@@ -434,6 +437,8 @@ const translations = {
       promptHint: 'Describe the video content, actions and scene. Upload first or last frames to guide generation. Supports 4-12s videos with audio.',
       firstFrame: 'First',
       lastFrame: 'Last',
+      referenceImage: 'Upload reference',
+      removeReference: 'Remove reference',
       send: 'Generate',
       recharge: 'Top Up',
       online: 'Online',
@@ -501,6 +506,7 @@ const translations = {
       resend: '再送信',
       submitLogin: 'ログイン',
       logout: 'ログアウト',
+      download: 'ダウンロード',
     },
     hero: {
       kicker: 'Unified AI Creation Gateway',
@@ -574,6 +580,8 @@ const translations = {
       promptHint: '動画内容、動き、シーンを入力。最初または最後のフレーム画像で生成を制御できます。4-12 秒の音付き動画に対応。',
       firstFrame: '先頭',
       lastFrame: '末尾',
+      referenceImage: '参照画像を追加',
+      removeReference: '参照画像を削除',
       send: '生成',
       recharge: 'チャージ',
       online: 'オンライン',
@@ -679,10 +687,79 @@ onMounted(async () => {
   }
   document.addEventListener('click', handleDocumentClick)
 })
-onBeforeUnmount(() => document.removeEventListener('click', handleDocumentClick))
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleDocumentClick)
+  stopGenerationsPolling()
+  clearReferenceImage()
+})
 
 const promptText = ref('')
 const conversations = ref([])
+const GENERATIONS_POLL_INTERVAL_MS = 5000
+let generationsPollTimer = null
+let generationsRequestSequence = 0
+const referenceInput = ref(null)
+const referenceImage = ref(null)
+const referenceUploading = ref(false)
+
+function clearReferenceImage() {
+  if (referenceImage.value?.previewUrl) URL.revokeObjectURL(referenceImage.value.previewUrl)
+  referenceImage.value = null
+  if (referenceInput.value) referenceInput.value.value = ''
+}
+
+async function handleReferenceImage(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+  if (!file.type.startsWith('image/')) {
+    alert('请选择图片文件')
+    event.target.value = ''
+    return
+  }
+  clearReferenceImage()
+  const previewUrl = URL.createObjectURL(file)
+  referenceImage.value = { file, previewUrl, fileId: null, url: null }
+  referenceUploading.value = true
+  try {
+    const uploaded = await uploadAsset(file, 'reference')
+    referenceImage.value = { ...referenceImage.value, fileId: uploaded.fileId, url: uploaded.url }
+  } catch (error) {
+    clearReferenceImage()
+    alert(error.message)
+  } finally {
+    referenceUploading.value = false
+  }
+}
+
+async function downloadResult(conv) {
+  const url = conv.result?.thumbnailUrl
+  if (!url) return
+  const extension = conv.result.type === 'video' ? 'mp4' : 'png'
+  let filename = `generation-${conv.id}.${extension}`
+  try {
+    const pathname = new URL(url, window.location.href).pathname
+    const sourceName = decodeURIComponent(pathname.split('/').pop() || '')
+    if (sourceName.includes('.')) filename = sourceName
+  } catch { /* use generated filename */ }
+  const save = (href) => {
+    const link = document.createElement('a')
+    link.href = href
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+  }
+  try {
+    const response = await fetch(url)
+    if (!response.ok) throw new Error('download failed')
+    const objectUrl = URL.createObjectURL(await response.blob())
+    save(objectUrl)
+    URL.revokeObjectURL(objectUrl)
+  } catch {
+    save(url)
+  }
+}
+
 
 function currentParameterLabels() {
   return composerOptionGroups
@@ -707,8 +784,16 @@ async function submitGeneration() {
       ratio: s.ratio === 'auto' ? 'adaptive' : (s.ratio || '16:9'),
       generate_audio: s.audio === 'off' ? 'false' : 'true',
     }
-    await createGeneration({ model_id: Number(model.id), prompt: text, params: JSON.stringify(params) })
+    await createGeneration({
+      model_id: Number(model.id),
+      prompt: text,
+      params: JSON.stringify(params),
+      assets: referenceImage.value?.fileId
+        ? { references: [referenceImage.value.fileId] }
+        : undefined,
+    })
     promptText.value = ''
+    clearReferenceImage()
     openComposerDropdown.value = null
     await fetchConversations()
   } catch (e) {
@@ -776,27 +861,68 @@ function submitAuth() {
 }
 
 async function openAssetsPage() {
+  stopGenerationsPolling()
   activeView.value = 'works'
-  isToolMenuOpen.value = false
   try { profile.value = await getProfile() } catch {}
 }
 
 function backToStudio() {
   activeView.value = 'console'
+  fetchConversations()
 }
 
 function logout() {
+  stopGenerationsPolling()
   isAuthenticated.value = false
   activeView.value = 'home'
-  isToolMenuOpen.value = false
+  clearReferenceImage()
   resetAuthForm()
   localStorage.removeItem('hub_token')
 }
 
 // ── 数据加载 ──
+function mapGeneration(g) {
+  return {
+    id: String(g.id),
+    promptText: g.prompt,
+    modelId: String(g.model_id),
+    modelName: '',
+    accentColor: '#5a7bff',
+    assets: { firstFrame: null, lastFrame: null },
+    parameterLabels: [],
+    status: g.status === 'done' ? 'completed' : g.status === 'failed' ? 'failed' : 'running',
+    estimatedCredits: g.status === 'running' ? { min: '-', max: '-' } : undefined,
+    result: g.result_url
+      ? {
+          type: g.result_url.includes('.mp4') ? 'video' : 'image',
+          thumbnailUrl: g.result_url,
+          durationSeconds: g.result_url.includes('.mp4') ? 4 : null,
+        }
+      : undefined,
+    creditsConsumed: g.cost,
+    createdAt: g.created_at,
+  }
+}
+
+function stopGenerationsPolling() {
+  if (generationsPollTimer !== null) {
+    window.clearTimeout(generationsPollTimer)
+    generationsPollTimer = null
+  }
+}
+
+function scheduleGenerationsPolling() {
+  stopGenerationsPolling()
+  if (!isAuthenticated.value || activeView.value !== 'console') return
+  generationsPollTimer = window.setTimeout(() => {
+    generationsPollTimer = null
+    fetchConversations()
+  }, GENERATIONS_POLL_INTERVAL_MS)
+}
+
 async function loadUserData() {
   try {
-    const [models, gens, prof] = await Promise.all([getModels(), getGenerations(), getProfile()])
+    const [models, prof] = await Promise.all([getModels(), getProfile()])
     studioModels.value = (models || []).map(m => ({
       id: String(m.id),
       name: m.name,
@@ -806,41 +932,28 @@ async function loadUserData() {
       accent: m.category === 'video' ? '#5a7bff' : m.category === 'image' ? '#e85d75' : '#7c5cfc',
       desc: { zh: `${m.vendor} · ${m.category}`, en: `${m.vendor} · ${m.category}`, ja: `${m.vendor} · ${m.category}` },
     }))
-    conversations.value = (gens || []).map(g => ({
-      id: String(g.id),
-      promptText: g.prompt,
-      modelId: String(g.model_id),
-      modelName: '',
-      accentColor: '#5a7bff',
-      assets: { firstFrame: null, lastFrame: null },
-      parameterLabels: [],
-      status: g.status === 'done' ? 'completed' : g.status === 'failed' ? 'failed' : 'running',
-      estimatedCredits: g.status === 'running' ? { min: '-', max: '-' } : undefined,
-	      result: g.result_url ? { type: g.result_url.includes('.mp4') ? 'video' : 'image', thumbnailUrl: g.result_url, durationSeconds: g.result_url.includes('.mp4') ? 4 : null } : undefined,
-      creditsConsumed: g.cost,
-      createdAt: g.created_at,
-    }))
     profile.value = prof || {}
+    await fetchConversations()
   } catch { /* ignore */ }
 }
+
 async function fetchConversations() {
+  const requestSequence = ++generationsRequestSequence
+  let shouldPoll = conversations.value.some(conv => conv.status === 'running')
+
   try {
     const gens = await getGenerations()
-    conversations.value = (gens || []).map(g => ({
-      id: String(g.id),
-      promptText: g.prompt,
-      modelId: String(g.model_id),
-      modelName: '',
-      accentColor: '#5a7bff',
-      assets: { firstFrame: null, lastFrame: null },
-      parameterLabels: [],
-      status: g.status === 'done' ? 'completed' : g.status === 'failed' ? 'failed' : 'running',
-      estimatedCredits: g.status === 'running' ? { min: '-', max: '-' } : undefined,
-	      result: g.result_url ? { type: g.result_url.includes('.mp4') ? 'video' : 'image', thumbnailUrl: g.result_url, durationSeconds: g.result_url.includes('.mp4') ? 4 : null } : undefined,
-      creditsConsumed: g.cost,
-      createdAt: g.created_at,
-    }))
-  } catch { /* ignore */ }
+    if (requestSequence !== generationsRequestSequence) return
+
+    const generationList = Array.isArray(gens) ? gens : []
+    conversations.value = generationList.map(mapGeneration)
+    shouldPoll = generationList.some(generation => generation.status === 'running')
+  } catch {
+    if (requestSequence !== generationsRequestSequence) return
+  }
+
+  if (shouldPoll) scheduleGenerationsPolling()
+  else stopGenerationsPolling()
 }
 </script>
 
@@ -1011,14 +1124,13 @@ async function fetchConversations() {
         </button>
       </div>
 
-      <button class="studio-user-card" type="button" @click="openAssetsPage">
+      <div class="studio-user-card">
         <span class="user-avatar">远</span>
         <div>
           <strong>远去画眉</strong>
           <p><i></i>{{ t.studio.online }}</p>
         </div>
-        <span class="recharge-chip">{{ t.studio.recharge }}</span>
-      </button>
+      </div>
     </aside>
 
     <section class="studio-main">
@@ -1033,11 +1145,6 @@ async function fetchConversations() {
       </button>
 
       <header class="studio-toolbar">
-        <div class="studio-toolbar-left">
-          <button class="task-pill" type="button">☷ {{ t.studio.taskList }}</button>
-          <button class="idea-pill" type="button">◌</button>
-        </div>
-
         <div class="studio-toolbar-right">
           <div class="language-switcher studio-language" aria-label="Language">
             <button
@@ -1050,18 +1157,9 @@ async function fetchConversations() {
               {{ locale.label }}
             </button>
           </div>
-          <div class="studio-menu-wrap">
-            <button class="app-menu-button" type="button" :aria-label="t.studio.menu" @click="isToolMenuOpen = !isToolMenuOpen">
-              <span></span>
-              <span></span>
-              <span></span>
-              <span></span>
-            </button>
-            <div v-if="isToolMenuOpen" class="studio-menu">
-              <button v-for="item in t.studio.menuItems" :key="item" type="button" @click="item === t.studio.menuItems[0] && openAssetsPage()">{{ item }}</button>
-              <button type="button" @click="logout">{{ t.actions.logout }}</button>
-            </div>
-          </div>
+          <button class="studio-logout-button" type="button" @click="logout">
+            {{ t.actions.logout }}
+          </button>
         </div>
       </header>
 
@@ -1111,9 +1209,7 @@ async function fetchConversations() {
                 <div class="conv-running-icon">
                   <span></span><span></span><span></span>
                 </div>
-                <span>
-                  生成中… 预计 ⚡{{ conv.estimatedCredits?.min || '...' }}~{{ conv.estimatedCredits?.max || '...' }}
-                </span>
+                <span>生成中…</span>
               </div>
               <div v-else-if="conv.status === 'failed'" class="conv-failed">
                 生成失败：{{ conv.errorMessage || '请稍后重试' }}
@@ -1131,9 +1227,7 @@ async function fetchConversations() {
                   >{{ conv.result.durationSeconds }}s</span>
                 </div>
                 <footer class="conv-result-footer">
-                  <span class="conv-credits">⚡ {{ conv.creditsConsumed }}</span>
-                  <button type="button">↓ 下载</button>
-                  <button type="button">↻ 复用</button>
+                  <button type="button" @click="downloadResult(conv)">{{ t.actions.download }}</button>
                 </footer>
               </div>
             </div>
@@ -1142,6 +1236,28 @@ async function fetchConversations() {
       </div>
 
       <form class="studio-composer" @submit.prevent="submitGeneration">
+        <div class="composer-reference">
+          <input
+            ref="referenceInput"
+            class="visually-hidden"
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            @change="handleReferenceImage"
+          />
+          <button
+            v-if="!referenceImage"
+            class="composer-reference-button"
+            type="button"
+            :disabled="referenceUploading"
+            @click="referenceInput?.click()"
+          >
+            {{ referenceUploading ? "上传中…" : t.studio.referenceImage }}
+          </button>
+          <div v-else class="composer-reference-preview">
+            <img :src="referenceImage.previewUrl" :alt="t.studio.referenceImage" />
+            <button type="button" :aria-label="t.studio.removeReference" @click="clearReferenceImage">×</button>
+          </div>
+        </div>
         <textarea v-model="promptText" :placeholder="t.studio.promptHint"></textarea>
         <div class="composer-meta">
           <div class="composer-options">

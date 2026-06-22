@@ -1611,6 +1611,7 @@ button {
 .studio-toolbar-left,
 .studio-toolbar-right {
   display: flex;
+  margin-left: auto;
   align-items: center;
   gap: 10px;
 }
@@ -1719,6 +1720,22 @@ button {
 
 .studio-menu button:hover {
   background: rgba(35, 201, 228, 0.1);
+}
+
+.studio-logout-button {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid rgba(35, 201, 228, 0.28);
+  border-radius: 9px;
+  color: #273348;
+  background: rgba(255, 255, 255, 0.58);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.studio-logout-button:hover {
+  border-color: rgba(18, 167, 191, 0.55);
+  background: rgba(255, 255, 255, 0.78);
 }
 
 .studio-stage {
@@ -2058,6 +2075,78 @@ button {
   cursor: pointer;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.composer-reference {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+}
+
+.composer-reference-button {
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid rgba(18, 167, 191, 0.28);
+  border-radius: 9px;
+  color: #087f94;
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.composer-reference-button:hover {
+  border-color: rgba(18, 167, 191, 0.55);
+}
+
+.composer-reference-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.composer-reference-preview {
+  position: relative;
+  width: 58px;
+  height: 58px;
+}
+
+.composer-reference-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 8px 18px rgba(18, 80, 110, 0.16);
+}
+
+.composer-reference-preview button {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  display: grid;
+  width: 21px;
+  height: 21px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  color: white;
+  background: #273348;
+  font-size: 15px;
+  line-height: 1;
+}
+
 .studio-composer {
   position: fixed;
   right: 26px;
@@ -2120,7 +2209,7 @@ button {
 
 .studio-composer textarea {
   min-height: 88px;
-  width: 100%;
+  width: calc(100% - 130px);
   border: 0;
   color: #233147;
   background: transparent;
@@ -2415,6 +2504,11 @@ button {
     grid-template-columns: 1fr;
     max-height: 330px;
     overflow: auto;
+  }
+
+  .studio-composer textarea {
+    width: 100%;
+    padding-top: 42px;
   }
 
   .composer-assets {

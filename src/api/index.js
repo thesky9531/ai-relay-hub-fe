@@ -40,6 +40,26 @@ export function getModels() {
 export function createGeneration(data) {
   return request('/generations', { method: 'POST', body: JSON.stringify(data) })
 }
+
+export async function uploadAsset(file, usage = 'reference') {
+  const body = new FormData()
+  body.append('file', file)
+  body.append('usage', usage)
+  const headers = {}
+  const token = getToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+  const res = await fetch(`${BASE}/uploads`, { method: 'POST', headers, body })
+  const json = await res.json()
+  if (res.status === 401) {
+    clearToken()
+    window.location.reload()
+    return
+  }
+  if (!res.ok || json.code !== 0) {
+    throw new Error(json.message || '图片上传失败')
+  }
+  return json.data
+}
 export function getGenerations(params = {}) {
   const qs = new URLSearchParams(params).toString()
   return request(`/generations?${qs}`)
