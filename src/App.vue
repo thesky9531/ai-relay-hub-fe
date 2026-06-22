@@ -116,56 +116,123 @@ const _unused_models = [
   },
 ]
 
-const composerOptionGroups = [
-  {
-    key: 'duration',
-    icon: '◷',
-    options: [
-      { key: '4s', label: { zh: '4秒', en: '4s', ja: '4秒' } },
-      { key: '5s', label: { zh: '5秒', en: '5s', ja: '5秒' } },
-      { key: '6s', label: { zh: '6秒', en: '6s', ja: '6秒' } },
-      { key: '8s', label: { zh: '8秒', en: '8s', ja: '8秒' } },
-      { key: '10s', label: { zh: '10秒', en: '10s', ja: '10秒' } },
-      { key: '12s', label: { zh: '12秒', en: '12s', ja: '12秒' } },
-    ],
-    default: '4s',
-  },
-  {
-    key: 'resolution',
-    icon: '◨',
-    options: [
-      { key: '480p', label: { zh: '480p', en: '480p', ja: '480p' } },
-      { key: '720p', label: { zh: '720p', en: '720p', ja: '720p' } },
-      { key: '1080p', label: { zh: '1080p', en: '1080p', ja: '1080p' } },
-      { key: '2k', label: { zh: '2K', en: '2K', ja: '2K' } },
-      { key: '4k', label: { zh: '4K', en: '4K', ja: '4K' } },
-    ],
-    default: '1080p',
-  },
-  {
-    key: 'ratio',
-    icon: '◇',
-    options: [
-      { key: 'auto', label: { zh: '自适应', en: 'Auto', ja: '自動' } },
-      { key: '16:9', label: { zh: '宽屏 16:9', en: '16:9 Wide', ja: '16:9 ワイド' } },
-      { key: '9:16', label: { zh: '竖屏 9:16', en: '9:16 Portrait', ja: '9:16 縦' } },
-      { key: '1:1', label: { zh: '方形 1:1', en: '1:1 Square', ja: '1:1 正方形' } },
-      { key: '4:3', label: { zh: '传统 4:3', en: '4:3 Classic', ja: '4:3 クラシック' } },
-      { key: '3:4', label: { zh: '竖式 3:4', en: '3:4 Portrait', ja: '3:4 縦' } },
-      { key: '21:9', label: { zh: '电影 21:9', en: '21:9 Cinema', ja: '21:9 シネマ' } },
-    ],
-    default: '4:3',
-  },
-  {
-    key: 'audio',
-    icon: '◈',
-    options: [
-      { key: 'on', label: { zh: '有声', en: 'With audio', ja: '音声あり' } },
-      { key: 'off', label: { zh: '无声', en: 'Muted', ja: '無音' } },
-    ],
-    default: 'on',
-  },
+// ── 模型参数配置（按 provider_model_id）──────────────────────────
+// 每个模型定义：groups（对话框选项组）+ toParams（选中值 → API 参数映射）
+
+const RATIO_OPTIONS = [
+  { key: '16:9', label: { zh: '宽屏 16:9', en: '16:9 Wide', ja: '16:9 ワイド' } },
+  { key: '9:16', label: { zh: '竖屏 9:16', en: '9:16 Portrait', ja: '9:16 縦' } },
+  { key: '1:1', label: { zh: '方形 1:1', en: '1:1 Square', ja: '1:1 正方形' } },
+  { key: '4:3', label: { zh: '传统 4:3', en: '4:3 Classic', ja: '4:3 クラシック' } },
+  { key: '3:4', label: { zh: '竖式 3:4', en: '3:4 Portrait', ja: '3:4 縦' } },
+  { key: '21:9', label: { zh: '电影 21:9', en: '21:9 Cinema', ja: '21:9 シネマ' } },
 ]
+
+const RATIO_OPTIONS_ADAPTIVE = [
+  { key: 'adaptive', label: { zh: '自适应', en: 'Auto', ja: '自動' } },
+  ...RATIO_OPTIONS,
+]
+
+const DUR_OPTIONS_4_12 = ['4','5','6','8','10','12'].map(k => ({ key: k, label: { zh: `${k}秒`, en: `${k}s`, ja: `${k}秒` } }))
+const DUR_OPTIONS_4_15 = ['4','5','6','7','8','9','10','11','12','13','14','15'].map(k => ({ key: k, label: { zh: `${k}秒`, en: `${k}s`, ja: `${k}秒` } }))
+const DUR_OPTIONS_1_16 = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16'].map(k => ({ key: k, label: { zh: `${k}秒`, en: `${k}s`, ja: `${k}秒` } }))
+
+const MODEL_PARAM_CONFIGS = {
+  // 即梦 3.5 Pro
+  'doubao-seedance-1-5-pro-251215': {
+    imageMin: 0, imageMax: 1, imageLabel: { zh: '参考图(可选)', en: 'Reference (opt)', ja: '参照画像(任意)' },
+    groups: [
+      { key: 'duration', icon: '◷', options: DUR_OPTIONS_4_12, default: '4' },
+      { key: 'resolution', icon: '◨', options: [{ key:'480p',label:{zh:'480p',en:'480p',ja:'480p'}},{ key:'720p',label:{zh:'720p',en:'720p',ja:'720p'}},{ key:'1080p',label:{zh:'1080p',en:'1080p',ja:'1080p'}}], default: '720p' },
+      { key: 'ratio', icon: '◇', options: RATIO_OPTIONS_ADAPTIVE, default: '16:9' },
+      { key: 'audio', icon: '◈', options: [{ key:'true',label:{zh:'有声',en:'Audio',ja:'音声'}},{ key:'false',label:{zh:'无声',en:'Muted',ja:'無音'}}], default: 'true' },
+    ],
+    toParams(s, refUrls) {
+      return { audio_duration: s.duration||'4', resolution: s.resolution||'720p', ratio: s.ratio||'16:9', generate_audio: s.audio||'true', ...(refUrls.length ? { images: refUrls } : {}) }
+    },
+  },
+  // SD 2.0 参考生
+  'kwvideo-v2-ref': {
+    imageMin: 1, imageMax: 9, imageLabel: { zh: '参考图(1-9张)', en: 'References (1-9)', ja: '参照画像(1-9枚)' },
+    groups: [
+      { key: 'version', icon: '⚡', options: [{ key:'标准',label:{zh:'标准',en:'Standard',ja:'標準'}},{ key:'快速',label:{zh:'快速',en:'Fast',ja:'高速'}}], default: '标准' },
+      { key: 'duration', icon: '◷', options: [{ key:'auto',label:{zh:'自动',en:'Auto',ja:'自動'}},...DUR_OPTIONS_4_15], default: 'auto' },
+      { key: 'aspect_ratio', icon: '◇', options: RATIO_OPTIONS_ADAPTIVE, default: 'adaptive' },
+      { key: 'resolution', icon: '◨', options: [{ key:'480p',label:{zh:'480p',en:'480p',ja:'480p'}},{ key:'720p',label:{zh:'720p',en:'720p',ja:'720p'}}], default: '720p' },
+    ],
+    toParams(s, refUrls) {
+      return { version: s.version||'标准', duration: s.duration||'auto', aspect_ratio: s.aspect_ratio||'adaptive', resolution: s.resolution||'720p', images: refUrls.length ? refUrls : undefined }
+    },
+  },
+  // grok-video-3
+  'grok-video-3': {
+    imageMin: 0, imageMax: 1, imageLabel: { zh: '首帧参考图(可选)', en: 'First frame (opt)', ja: '先頭フレーム(任意)' },
+    groups: [
+      { key: 'duration', icon: '◷', options: [{ key:'6',label:{zh:'6秒',en:'6s',ja:'6秒'}},{ key:'10',label:{zh:'10秒',en:'10s',ja:'10秒'}}], default: '6' },
+      { key: 'size', icon: '◨', options: [{ key:'720P',label:{zh:'720P',en:'720P',ja:'720P'}},{ key:'1080P',label:{zh:'1080P',en:'1080P',ja:'1080P'}}], default: '720P' },
+      { key: 'aspect_ratio', icon: '◇', options: [{ key:'2:3',label:{zh:'2:3',en:'2:3',ja:'2:3'}},{ key:'3:2',label:{zh:'3:2',en:'3:2',ja:'3:2'}},{ key:'1:1',label:{zh:'1:1 方形',en:'1:1 Square',ja:'1:1'}}], default: '3:2' },
+    ],
+    toParams(s, refUrls) {
+      return { duration: s.duration||'6', size: s.size||'720P', aspect_ratio: s.aspect_ratio||'3:2', ...(refUrls.length ? { images: refUrls } : {}) }
+    },
+  },
+  // 可灵-Omni 参考生
+  'kling-v3-omni-cankao': {
+    imageMin: 1, imageMax: 7, imageLabel: { zh: '参考图(1-7张)', en: 'References (1-7)', ja: '参照画像(1-7枚)' },
+    groups: [
+      { key: 'duration', icon: '◷', options: [{ key:'5',label:{zh:'5秒',en:'5s',ja:'5秒'}},{ key:'10',label:{zh:'10秒',en:'10s',ja:'10秒'}},{ key:'15',label:{zh:'15秒',en:'15s',ja:'15秒'}}], default: '5' },
+      { key: 'mode', icon: '◈', options: [{ key:'std',label:{zh:'标准',en:'Standard',ja:'標準'}},{ key:'pro',label:{zh:'高品质',en:'Pro',ja:'高品質'}}], default: 'std' },
+      { key: 'aspect_ratio', icon: '◇', options: [{ key:'16:9',label:{zh:'16:9',en:'16:9',ja:'16:9'}},{ key:'9:16',label:{zh:'9:16',en:'9:16',ja:'9:16'}},{ key:'1:1',label:{zh:'1:1',en:'1:1',ja:'1:1'}}], default: '16:9' },
+    ],
+    toParams(s, refUrls) {
+      return { duration: s.duration||'5', mode: s.mode||'std', aspect_ratio: s.aspect_ratio||'16:9', images: refUrls.length ? refUrls : undefined }
+    },
+  },
+  // 快乐马-参考生
+  'happyhorse-r2v': {
+    imageMin: 1, imageMax: 5, imageLabel: { zh: '参考图(1-5张)', en: 'References (1-5)', ja: '参照画像(1-5枚)' },
+    groups: [
+      { key: 'duration', icon: '◷', options: DUR_OPTIONS_4_15.filter(o => parseInt(o.key) >= 3), default: '5' },
+      { key: 'resolution', icon: '◨', options: [{ key:'720P',label:{zh:'720P',en:'720P',ja:'720P'}},{ key:'1080P',label:{zh:'1080P',en:'1080P',ja:'1080P'}}], default: '720P' },
+      { key: 'ratio', icon: '◇', options: RATIO_OPTIONS.filter(o => ['16:9','9:16','3:4','4:3','1:1'].includes(o.key)), default: '16:9' },
+    ],
+    toParams(s, refUrls) {
+      return { duration: s.duration||'5', resolution: s.resolution||'720P', ratio: s.ratio||'16:9', images: refUrls.length ? refUrls : undefined }
+    },
+  },
+  // Vidu Q3 Turbo
+  'viduq3-turbo': {
+    imageMin: 1, imageMax: 2, imageLabel: { zh: '首尾帧(1-2张)', en: 'Frames (1-2)', ja: '先頭/末尾(1-2枚)' },
+    groups: [
+      { key: 'duration', icon: '◷', options: DUR_OPTIONS_1_16, default: '4' },
+      { key: 'resolution', icon: '◨', options: [{ key:'540p',label:{zh:'540p',en:'540p',ja:'540p'}},{ key:'720p',label:{zh:'720p',en:'720p',ja:'720p'}},{ key:'1080p',label:{zh:'1080p',en:'1080p',ja:'1080p'}}], default: '720p' },
+      { key: 'off_peak', icon: '◈', options: [{ key:'false',label:{zh:'正常',en:'Normal',ja:'通常'}},{ key:'true',label:{zh:'错峰(半价)',en:'Off-peak',ja:'半額'}}], default: 'false' },
+    ],
+    toParams(s, refUrls) {
+      return { duration: s.duration||'4', resolution: s.resolution||'720p', off_peak: s.off_peak === 'true', ...(refUrls.length ? { images: refUrls } : {}) }
+    },
+  },
+}
+
+const DEFAULT_PARAM_CONFIG = {
+  imageMin: 0, imageMax: 1, imageLabel: { zh: '参考图', en: 'Reference', ja: '参照画像' },
+  groups: [
+    { key: 'duration', icon: '◷', options: [{ key:'4',label:{zh:'4秒',en:'4s',ja:'4秒'}},{ key:'8',label:{zh:'8秒',en:'8s',ja:'8秒'}}], default: '4' },
+    { key: 'resolution', icon: '◨', options: [{ key:'720p',label:{zh:'720p',en:'720p',ja:'720p'}},{ key:'1080p',label:{zh:'1080p',en:'1080p',ja:'1080p'}}], default: '720p' },
+  ],
+  toParams(s, refUrls) {
+    return { duration: s.duration||'4', resolution: s.resolution||'720p', ...(refUrls.length ? { images: refUrls } : {}) }
+  },
+}
+
+// 当前选中模型对应的参数配置（响应式）
+const activeParamConfig = computed(() => {
+  const id = selectedStudioModel.value?.providerModelId
+  return (id && MODEL_PARAM_CONFIGS[id]) || DEFAULT_PARAM_CONFIG
+})
+
+// 对话框选项组（根据选中模型动态变化）
+const composerOptionGroups = computed(() => activeParamConfig.value.groups)
 
 const initialConversations = [
   {
@@ -644,10 +711,17 @@ const selectedStudioModel = computed(
   () => studioModels.value.find((model) => model.id === activeStudioModel.value) || studioModels.value[0],
 )
 
-const composerSelections = ref(
-  Object.fromEntries(composerOptionGroups.map((group) => [group.key, group.default])),
-)
+const composerSelections = ref({})
+
+function resetComposerSelections() {
+  composerSelections.value = Object.fromEntries(
+    composerOptionGroups.value.map((group) => [group.key, group.default]),
+  )
+}
+// 初始化 & 模型切换时重置
 const openComposerDropdown = ref(null)
+resetComposerSelections()
+watch(() => activeStudioModel.value, () => { resetComposerSelections(); openComposerDropdown.value = null })
 
 function toggleComposerDropdown(key) {
   openComposerDropdown.value = openComposerDropdown.value === key ? null : key
@@ -690,7 +764,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleDocumentClick)
   stopGenerationsPolling()
-  clearReferenceImage()
+  clearReferenceImages()
 })
 
 const promptText = ref('')
@@ -699,16 +773,20 @@ const GENERATIONS_POLL_INTERVAL_MS = 5000
 let generationsPollTimer = null
 let generationsRequestSequence = 0
 const referenceInput = ref(null)
-const referenceImage = ref(null)
-const referenceUploading = ref(false)
+const referenceImages = ref([])   // [{ file, previewUrl }]
+const submitting = ref(false)
 
-function clearReferenceImage() {
-  if (referenceImage.value?.previewUrl) URL.revokeObjectURL(referenceImage.value.previewUrl)
-  referenceImage.value = null
-  if (referenceInput.value) referenceInput.value.value = ''
+function clearReferenceImages() {
+  referenceImages.value.forEach(r => { if (r.previewUrl) URL.revokeObjectURL(r.previewUrl) })
+  referenceImages.value = []
+}
+function removeReferenceImage(index) {
+  const removed = referenceImages.value.splice(index, 1)
+  removed.forEach(r => { if (r.previewUrl) URL.revokeObjectURL(r.previewUrl) })
 }
 
-async function handleReferenceImage(event) {
+// 选文件 — 仅暂存，提交时统一上传
+function handleReferenceFile(event) {
   const file = event.target.files?.[0]
   if (!file) return
   if (!file.type.startsWith('image/')) {
@@ -716,20 +794,19 @@ async function handleReferenceImage(event) {
     event.target.value = ''
     return
   }
-  clearReferenceImage()
-  const previewUrl = URL.createObjectURL(file)
-  referenceImage.value = { file, previewUrl, fileId: null, url: null }
-  referenceUploading.value = true
-  try {
-    const uploaded = await uploadAsset(file, 'reference')
-    referenceImage.value = { ...referenceImage.value, fileId: uploaded.fileId, url: uploaded.url }
-  } catch (error) {
-    clearReferenceImage()
-    alert(error.message)
-  } finally {
-    referenceUploading.value = false
+  const max = activeParamConfig.value.imageMax
+  if (referenceImages.value.length >= max) {
+    alert(`最多 ${max} 张图片`)
+    event.target.value = ''
+    return
   }
+  const previewUrl = URL.createObjectURL(file)
+  referenceImages.value = [...referenceImages.value, { file, previewUrl }]
+  event.target.value = ''
 }
+
+// 模型切换时清空
+watch(() => activeStudioModel.value, () => { clearReferenceImages() })
 
 async function downloadResult(conv) {
   const url = conv.result?.thumbnailUrl
@@ -762,7 +839,7 @@ async function downloadResult(conv) {
 
 
 function currentParameterLabels() {
-  return composerOptionGroups
+  return composerOptionGroups.value
     .map((group) => {
       const selected = composerSelections.value[group.key]
       const option = group.options.find((o) => o.key === selected)
@@ -776,28 +853,39 @@ async function submitGeneration() {
   if (!text) return
   const model = selectedStudioModel.value
   if (!model) return
+  const cfg = activeParamConfig.value
+
+  if (submitting.value) return
+  submitting.value = true
+
   try {
-    const s = composerSelections.value
-    const params = {
-      audio_duration: (s.duration || '4s').replace('s', ''),
-      resolution: s.resolution || '720p',
-      ratio: s.ratio === 'auto' ? 'adaptive' : (s.ratio || '16:9'),
-      generate_audio: s.audio === 'off' ? 'false' : 'true',
+    // 1. 上传所有文件，获取 URL
+    const uploadPromises = referenceImages.value.map(r =>
+      r.file ? uploadAsset(r.file).then(u => u.url) : null
+    )
+    const refUrls = (await Promise.all(uploadPromises)).filter(Boolean)
+
+    // 2. 校验数量
+    if (refUrls.length < cfg.imageMin) {
+      alert(`当前模型需要至少 ${cfg.imageMin} 张图片，已上传 ${refUrls.length} 张`)
+      return
     }
+
+    // 3. 创建生成任务
+    const params = cfg.toParams(composerSelections.value, refUrls)
     await createGeneration({
       model_id: Number(model.id),
       prompt: text,
       params: JSON.stringify(params),
-      assets: referenceImage.value?.fileId
-        ? { references: [referenceImage.value.fileId] }
-        : undefined,
     })
     promptText.value = ''
-    clearReferenceImage()
+    clearReferenceImages()
     openComposerDropdown.value = null
     await fetchConversations()
   } catch (e) {
     alert(e.message)
+  } finally {
+    submitting.value = false
   }
 }
 
@@ -875,7 +963,8 @@ function logout() {
   stopGenerationsPolling()
   isAuthenticated.value = false
   activeView.value = 'home'
-  clearReferenceImage()
+  showAuthModal.value = true
+  clearReferenceImages()
   resetAuthForm()
   localStorage.removeItem('hub_token')
 }
@@ -891,6 +980,7 @@ function mapGeneration(g) {
     assets: { firstFrame: null, lastFrame: null },
     parameterLabels: [],
     status: g.status === 'done' ? 'completed' : g.status === 'failed' ? 'failed' : 'running',
+    errorMessage: g.error || '',
     estimatedCredits: g.status === 'running' ? { min: '-', max: '-' } : undefined,
     result: g.result_url
       ? {
@@ -927,10 +1017,15 @@ async function loadUserData() {
       id: String(m.id),
       name: m.name,
       vendor: m.vendor,
+      providerModelId: m.provider_model_id,
       score: m.cost ? `${m.cost} cr` : 'N/A',
       category: m.category,
       accent: m.category === 'video' ? '#5a7bff' : m.category === 'image' ? '#e85d75' : '#7c5cfc',
-      desc: { zh: `${m.vendor} · ${m.category}`, en: `${m.vendor} · ${m.category}`, ja: `${m.vendor} · ${m.category}` },
+      desc: {
+        zh: m.description || `${m.vendor} · ${m.category}`,
+        en: m.description || `${m.vendor} · ${m.category}`,
+        ja: m.description || `${m.vendor} · ${m.category}`,
+      },
     }))
     profile.value = prof || {}
     await fetchConversations()
@@ -1236,27 +1331,37 @@ async function fetchConversations() {
       </div>
 
       <form class="studio-composer" @submit.prevent="submitGeneration">
+        <!-- 参考图：文件上传 + URL 粘贴 -->
         <div class="composer-reference">
           <input
             ref="referenceInput"
             class="visually-hidden"
             type="file"
             accept="image/png,image/jpeg,image/webp"
-            @change="handleReferenceImage"
+            @change="handleReferenceFile"
           />
-          <button
-            v-if="!referenceImage"
-            class="composer-reference-button"
-            type="button"
-            :disabled="referenceUploading"
-            @click="referenceInput?.click()"
-          >
-            {{ referenceUploading ? "上传中…" : t.studio.referenceImage }}
-          </button>
-          <div v-else class="composer-reference-preview">
-            <img :src="referenceImage.previewUrl" :alt="t.studio.referenceImage" />
-            <button type="button" :aria-label="t.studio.removeReference" @click="clearReferenceImage">×</button>
+          <div v-if="referenceImages.length" class="composer-reference-list">
+            <div v-for="(img, idx) in referenceImages" :key="img.previewUrl" class="composer-reference-preview">
+              <img :src="img.previewUrl" :alt="`参考图 ${idx+1}`" />
+              <button type="button" :aria-label="t.studio.removeReference" @click="removeReferenceImage(idx)">×</button>
+            </div>
+            <!-- 添加更多 -->
+            <button
+              v-if="referenceImages.length < activeParamConfig.imageMax"
+              type="button"
+              class="composer-reference-add"
+              @click="referenceInput?.click()"
+            >+</button>
           </div>
+          <button
+            v-if="referenceImages.length === 0"
+            type="button"
+            class="composer-reference-button"
+            @click="referenceInput?.click()"
+          >{{ activeParamConfig.imageLabel[activeLocale] }}</button>
+          <span class="composer-reference-hint" v-if="activeParamConfig.imageMin > 0 && referenceImages.length < activeParamConfig.imageMin">
+            还需 {{ activeParamConfig.imageMin - referenceImages.length }} 张
+          </span>
         </div>
         <textarea v-model="promptText" :placeholder="t.studio.promptHint"></textarea>
         <div class="composer-meta">
@@ -1287,7 +1392,7 @@ async function fetchConversations() {
               </ul>
             </div>
           </div>
-          <button class="composer-submit" type="submit">↑</button>
+          <button class="composer-submit" type="submit" :disabled="submitting">{{ submitting ? '⏳' : '↑' }}</button>
         </div>
       </form>
     </section>

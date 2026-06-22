@@ -2094,26 +2094,6 @@ button {
   z-index: 2;
 }
 
-.composer-reference-button {
-  min-height: 34px;
-  padding: 0 13px;
-  border: 1px solid rgba(18, 167, 191, 0.28);
-  border-radius: 9px;
-  color: #087f94;
-  background: rgba(255, 255, 255, 0.72);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.composer-reference-button:hover {
-  border-color: rgba(18, 167, 191, 0.55);
-}
-
-.composer-reference-button:disabled {
-  cursor: wait;
-  opacity: 0.65;
-}
-
 .composer-reference-preview {
   position: relative;
   width: 58px;
@@ -2145,6 +2125,53 @@ button {
   background: #273348;
   font-size: 15px;
   line-height: 1;
+}
+
+/* 多图预览列表 */
+.composer-reference-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+/* "+" 添加按钮（预览列表末尾） */
+.composer-reference-add {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed rgba(18, 167, 191, 0.35);
+  border-radius: 10px;
+  color: #087f94;
+  background: rgba(255, 255, 255, 0.42);
+  font-size: 24px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.composer-reference-add:hover { border-color: rgba(18, 167, 191, 0.7); }
+
+/* 主上传按钮（无图片时） */
+.composer-reference-button {
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid rgba(18, 167, 191, 0.28);
+  border-radius: 9px;
+  color: #087f94;
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.composer-reference-button:hover { border-color: rgba(18, 167, 191, 0.55); }
+
+/* 图片提示文字 */
+.composer-reference-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  color: #e85d75;
+  text-align: center;
 }
 
 .studio-composer {
