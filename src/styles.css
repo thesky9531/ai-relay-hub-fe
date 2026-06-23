@@ -2091,12 +2091,8 @@ button {
 }
 
 .composer-reference {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  z-index: 2;
-  display: grid;
-  justify-items: start;
+  display: flex;
+  align-items: center;
   gap: 6px;
 }
 
@@ -2104,17 +2100,32 @@ button {
   display: block;
   min-width: 148px;
   min-height: 78px;
+  max-width: min(400px, calc(100vw - 64px));
   padding: 10px;
   border: 1px dashed rgba(18, 167, 191, 0.34);
   border-radius: 14px;
   background: #eef4fa;
   text-align: left;
   cursor: pointer;
+  overflow: hidden;
+  transition: max-width 0.2s ease, box-shadow 0.2s ease;
 }
 
 .composer-reference-panel.empty {
   display: grid;
   place-items: center;
+}
+
+/* 有图片时默认折叠为单缩略图宽度 */
+.composer-reference-panel:not(.empty) {
+  min-width: auto;
+  max-width: 78px;
+}
+
+/* 鼠标悬停时展开 */
+.composer-reference-panel:not(.empty):hover {
+  max-width: min(400px, calc(100vw - 64px));
+  overflow: visible;
 }
 
 .composer-reference-empty {
@@ -2128,6 +2139,7 @@ button {
   position: relative;
   width: 58px;
   height: 58px;
+  flex-shrink: 0;
 }
 
 .composer-reference-preview img {
@@ -2157,12 +2169,12 @@ button {
   line-height: 1;
 }
 
-/* 多图预览列表 */
+/* 多图预览列表 — 单行横向滚动 */
 .composer-reference-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, 58px);
+  display: flex;
+  flex-wrap: nowrap;
   gap: 8px;
-  justify-content: start;
+  overflow-x: auto;
 }
 
 .composer-reference-hint {
@@ -2175,6 +2187,7 @@ button {
   font-size: 11px;
   font-weight: 700;
   text-align: left;
+  white-space: nowrap;
 }
 
 .studio-composer {
@@ -2238,7 +2251,6 @@ button {
 .studio-composer textarea {
   min-height: 88px;
   width: 100%;
-  padding-left: 176px;
   border: 0;
   color: #233147;
   background: transparent;
@@ -2544,8 +2556,6 @@ button {
 
   .studio-composer textarea {
     width: 100%;
-    padding-top: 42px;
-    padding-left: 0;
   }
 
   .composer-assets {
@@ -2764,8 +2774,6 @@ button {
 
   .desktop-scale-frame-studio .studio-composer textarea {
     width: 100%;
-    padding-left: 176px;
-    padding-top: 0;
   }
 
   .desktop-scale-frame-studio .studio-toolbar,

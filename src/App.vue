@@ -135,22 +135,10 @@ const RATIO_OPTIONS_ADAPTIVE = [
 
 const DUR_OPTIONS_4_12 = ['4','5','6','8','10','12'].map(k => ({ key: k, label: { zh: `${k}秒`, en: `${k}s`, ja: `${k}秒` } }))
 const DUR_OPTIONS_4_15 = ['4','5','6','7','8','9','10','11','12','13','14','15'].map(k => ({ key: k, label: { zh: `${k}秒`, en: `${k}s`, ja: `${k}秒` } }))
+const DUR_OPTIONS_1_15 = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15'].map(k => ({ key: k, label: { zh: `${k}秒`, en: `${k}s`, ja: `${k}秒` } }))
 const DUR_OPTIONS_1_16 = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16'].map(k => ({ key: k, label: { zh: `${k}秒`, en: `${k}s`, ja: `${k}秒` } }))
 
 const MODEL_PARAM_CONFIGS = {
-  // 即梦 3.5 Pro
-  'doubao-seedance-1-5-pro-251215': {
-    imageMin: 0, imageMax: 1, imageLabel: { zh: '参考图(可选)', en: 'Reference (opt)', ja: '参照画像(任意)' },
-    groups: [
-      { key: 'duration', icon: '◷', options: DUR_OPTIONS_4_12, default: '4' },
-      { key: 'resolution', icon: '◨', options: [{ key:'480p',label:{zh:'480p',en:'480p',ja:'480p'}},{ key:'720p',label:{zh:'720p',en:'720p',ja:'720p'}},{ key:'1080p',label:{zh:'1080p',en:'1080p',ja:'1080p'}}], default: '720p' },
-      { key: 'ratio', icon: '◇', options: RATIO_OPTIONS_ADAPTIVE, default: '16:9' },
-      { key: 'audio', icon: '◈', options: [{ key:'true',label:{zh:'有声',en:'Audio',ja:'音声'}},{ key:'false',label:{zh:'无声',en:'Muted',ja:'無音'}}], default: 'true' },
-    ],
-    toParams(s, refUrls) {
-      return { audio_duration: s.duration||'4', resolution: s.resolution||'720p', ratio: s.ratio||'16:9', generate_audio: s.audio||'true', ...(refUrls.length ? { images: refUrls } : {}) }
-    },
-  },
   // SD 2.0 参考生
   'kwvideo-v2-ref': {
     imageMin: 1, imageMax: 9, imageLabel: { zh: '参考图(1-9张)', en: 'References (1-9)', ja: '参照画像(1-9枚)' },
@@ -164,16 +152,16 @@ const MODEL_PARAM_CONFIGS = {
       return { version: s.version||'标准', duration: s.duration||'auto', aspect_ratio: s.aspect_ratio||'adaptive', resolution: s.resolution||'720p', images: refUrls.length ? refUrls : undefined }
     },
   },
-  // grok-video-3
-  'grok-video-3': {
-    imageMin: 0, imageMax: 1, imageLabel: { zh: '首帧参考图(可选)', en: 'First frame (opt)', ja: '先頭フレーム(任意)' },
+  // grok-video-3.5
+  'grok-imagine-video-1.5-preview': {
+    imageMin: 1, imageMax: 1, imageLabel: { zh: '首帧参考图(必填)', en: 'First frame (required)', ja: '先頭フレーム(必須)' },
     groups: [
-      { key: 'duration', icon: '◷', options: [{ key:'6',label:{zh:'6秒',en:'6s',ja:'6秒'}},{ key:'10',label:{zh:'10秒',en:'10s',ja:'10秒'}}], default: '6' },
-      { key: 'size', icon: '◨', options: [{ key:'720P',label:{zh:'720P',en:'720P',ja:'720P'}},{ key:'1080P',label:{zh:'1080P',en:'1080P',ja:'1080P'}}], default: '720P' },
-      { key: 'aspect_ratio', icon: '◇', options: [{ key:'2:3',label:{zh:'2:3',en:'2:3',ja:'2:3'}},{ key:'3:2',label:{zh:'3:2',en:'3:2',ja:'3:2'}},{ key:'1:1',label:{zh:'1:1 方形',en:'1:1 Square',ja:'1:1'}}], default: '3:2' },
+      { key: 'aspect_ratio', icon: '◇', options: [{ key:'16:9',label:{zh:'宽屏 16:9',en:'16:9 Wide',ja:'16:9 ワイド'}},{ key:'9:16',label:{zh:'竖屏 9:16',en:'9:16 Portrait',ja:'9:16 縦'}},{ key:'1:1',label:{zh:'方形 1:1',en:'1:1 Square',ja:'1:1 正方形'}},{ key:'3:2',label:{zh:'3:2',en:'3:2',ja:'3:2'}},{ key:'2:3',label:{zh:'2:3',en:'2:3',ja:'2:3'}}], default: '16:9' },
+      { key: 'resolution', icon: '◨', options: [{ key:'720p',label:{zh:'720p',en:'720p',ja:'720p'}},{ key:'480p',label:{zh:'480p',en:'480p',ja:'480p'}}], default: '720p' },
+      { key: 'duration', icon: '◷', options: DUR_OPTIONS_1_15, default: '6' },
     ],
     toParams(s, refUrls) {
-      return { duration: s.duration||'6', size: s.size||'720P', aspect_ratio: s.aspect_ratio||'3:2', ...(refUrls.length ? { images: refUrls } : {}) }
+      return { aspect_ratio: s.aspect_ratio||'16:9', resolution: s.resolution||'720p', duration: s.duration||'6', images: refUrls }
     },
   },
   // 可灵-Omni 参考生
@@ -1418,7 +1406,7 @@ async function fetchConversations() {
             <div v-if="referenceImages.length" class="composer-reference-list">
               <div v-for="(img, idx) in referenceImages" :key="img.previewUrl" class="composer-reference-preview">
                 <img :src="img.previewUrl" :alt="`参考图 ${idx+1}`" />
-                <button type="button" :aria-label="t.studio.removeReference" @click="removeReferenceImage(idx)">×</button>
+                <button type="button" :aria-label="t.studio.removeReference" @click.stop="removeReferenceImage(idx)">×</button>
               </div>
             </div>
             <div v-else class="composer-reference-empty">上传图片 / 粘贴图片</div>
@@ -1427,6 +1415,9 @@ async function fetchConversations() {
             点击上传图片，或粘贴图片到对话框
             <template v-if="activeParamConfig.imageMin > 0 && referenceImages.length < activeParamConfig.imageMin">
               ，还需 {{ activeParamConfig.imageMin - referenceImages.length }} 张
+            </template>
+            <template v-else-if="referenceImages.length >= activeParamConfig.imageMax">
+              ，已达上限（最多 {{ activeParamConfig.imageMax }} 张）
             </template>
           </span>
         </div>
