@@ -70,6 +70,14 @@ button {
   cursor: pointer;
 }
 
+.desktop-scale-frame {
+  display: contents;
+}
+
+.desktop-scale-canvas {
+  width: 100%;
+}
+
 .page-shell {
   width: min(1180px, calc(100% - 40px));
   margin: 0 auto;
@@ -693,10 +701,7 @@ button {
   padding: 28px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 8px;
-  background:
-    linear-gradient(150deg, rgba(215, 181, 109, 0.18), transparent 38%),
-    linear-gradient(22deg, rgba(102, 214, 163, 0.1), transparent 44%),
-    #101210;
+  background: #101210;
   box-shadow: 0 40px 120px rgba(0, 0, 0, 0.58);
 }
 
@@ -712,7 +717,7 @@ button {
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--text);
-  background: rgba(255, 255, 255, 0.07);
+  background: #1c1f1d;
   font-size: 24px;
   line-height: 1;
 }
@@ -1806,9 +1811,7 @@ button {
   padding: 16px 18px;
   border: 1px solid rgba(255, 255, 255, 0.55);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(22px) saturate(150%);
-  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  background: #f4f7fb;
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.7) inset,
     0 16px 40px rgba(18, 80, 110, 0.1);
@@ -2090,8 +2093,35 @@ button {
 .composer-reference {
   position: absolute;
   top: 16px;
-  right: 16px;
+  left: 16px;
   z-index: 2;
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+}
+
+.composer-reference-panel {
+  display: block;
+  min-width: 148px;
+  min-height: 78px;
+  padding: 10px;
+  border: 1px dashed rgba(18, 167, 191, 0.34);
+  border-radius: 14px;
+  background: #eef4fa;
+  text-align: left;
+  cursor: pointer;
+}
+
+.composer-reference-panel.empty {
+  display: grid;
+  place-items: center;
+}
+
+.composer-reference-empty {
+  color: #7a8aa0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .composer-reference-preview {
@@ -2129,49 +2159,22 @@ button {
 
 /* 多图预览列表 */
 .composer-reference-list {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  align-items: flex-start;
-}
-
-/* "+" 添加按钮（预览列表末尾） */
-.composer-reference-add {
-  width: 58px;
-  height: 58px;
   display: grid;
-  place-items: center;
-  border: 1px dashed rgba(18, 167, 191, 0.35);
-  border-radius: 10px;
-  color: #087f94;
-  background: rgba(255, 255, 255, 0.42);
-  font-size: 24px;
-  cursor: pointer;
-  transition: border-color 0.15s;
+  grid-template-columns: repeat(auto-fit, 58px);
+  gap: 8px;
+  justify-content: start;
 }
-.composer-reference-add:hover { border-color: rgba(18, 167, 191, 0.7); }
 
-/* 主上传按钮（无图片时） */
-.composer-reference-button {
-  min-height: 34px;
-  padding: 0 13px;
-  border: 1px solid rgba(18, 167, 191, 0.28);
-  border-radius: 9px;
-  color: #087f94;
-  background: rgba(255, 255, 255, 0.72);
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
-}
-.composer-reference-button:hover { border-color: rgba(18, 167, 191, 0.55); }
-
-/* 图片提示文字 */
 .composer-reference-hint {
   display: block;
-  margin-top: 4px;
-  font-size: 10px;
-  color: #e85d75;
-  text-align: center;
+  padding: 6px 10px;
+  border: 1px solid rgba(18, 167, 191, 0.2);
+  border-radius: 999px;
+  color: #627287;
+  background: #eef4fa;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: left;
 }
 
 .studio-composer {
@@ -2188,9 +2191,7 @@ button {
   padding: 18px 18px 14px;
   border: 1px solid rgba(255, 255, 255, 0.55);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(24px) saturate(150%);
-  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  background: #f4f7fb;
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.7) inset,
     0 22px 60px rgba(18, 80, 110, 0.14),
@@ -2236,7 +2237,8 @@ button {
 
 .studio-composer textarea {
   min-height: 88px;
-  width: calc(100% - 130px);
+  width: 100%;
+  padding-left: 176px;
   border: 0;
   color: #233147;
   background: transparent;
@@ -2244,6 +2246,13 @@ button {
   resize: none;
   font-size: 14px;
   line-height: 1.7;
+}
+
+.studio-composer textarea.drag-active {
+  border-radius: 12px;
+  outline: 2px dashed rgba(18, 167, 191, 0.55);
+  outline-offset: 6px;
+  background: rgba(18, 167, 191, 0.06);
 }
 
 .composer-meta {
@@ -2536,6 +2545,7 @@ button {
   .studio-composer textarea {
     width: 100%;
     padding-top: 42px;
+    padding-left: 0;
   }
 
   .composer-assets {
@@ -2653,5 +2663,124 @@ button {
 
   .auth-modal {
     padding: 22px;
+  }
+}
+
+@media (max-width: 980px) {
+  .desktop-scale-frame {
+    --desktop-canvas-width-value: 1440;
+    --desktop-scale: min(1, calc((100vw - 24px) / (var(--desktop-canvas-width-value) * 1px)));
+    display: block;
+    width: 100%;
+    padding: 12px;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .desktop-scale-canvas {
+    width: calc(var(--desktop-canvas-width-value) * 1px);
+    max-width: none;
+    zoom: var(--desktop-scale);
+  }
+
+  .desktop-scale-frame-assets .assets-shell {
+    grid-template-columns: minmax(0, 1fr) 456px;
+    min-width: calc(var(--desktop-canvas-width-value) * 1px);
+  }
+
+  .desktop-scale-frame-assets .assets-header {
+    grid-template-columns: auto auto 288px 1fr auto;
+    gap: 12px;
+    padding: 0 22px 0 42px;
+  }
+
+  .desktop-scale-frame-assets .assets-tabs,
+  .desktop-scale-frame-assets .assets-selected,
+  .desktop-scale-frame-assets .assets-actions {
+    grid-column: auto;
+  }
+
+  .desktop-scale-frame-assets .assets-selected {
+    justify-self: end;
+  }
+
+  .desktop-scale-frame-assets .assets-notice {
+    width: min(592px, calc(100% - 84px));
+    margin: 0 42px;
+  }
+
+  .desktop-scale-frame-assets .profile-panel {
+    padding: 20px 20px 28px 28px;
+  }
+
+  .desktop-scale-frame-studio .studio-shell {
+    grid-template-columns: 340px minmax(0, 1fr);
+    min-width: calc(var(--desktop-canvas-width-value) * 1px);
+  }
+
+  .desktop-scale-frame-studio .studio-sidebar {
+    grid-template-rows: none;
+    max-height: none;
+    height: 100vh;
+  }
+
+  .desktop-scale-frame-studio .studio-model-list {
+    display: grid;
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+    overflow-x: visible;
+    overflow-y: auto;
+    padding-bottom: 14px;
+  }
+
+  .desktop-scale-frame-studio .studio-user-card {
+    display: flex;
+  }
+
+  .desktop-scale-frame-studio .studio-main {
+    min-height: auto;
+    padding: 26px 28px 26px 20px;
+  }
+
+  .desktop-scale-frame-studio .studio-stage {
+    gap: 48px;
+    padding: 42px 16px 170px;
+  }
+
+  .desktop-scale-frame-studio .studio-composer {
+    position: fixed;
+    right: 26px;
+    bottom: 24px;
+    left: calc(var(--sidebar-width) + 20px);
+    grid-template-columns: 1fr;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .desktop-scale-frame-studio .sidebar-collapsed .studio-composer {
+    left: 74px;
+  }
+
+  .desktop-scale-frame-studio .studio-composer textarea {
+    width: 100%;
+    padding-left: 176px;
+    padding-top: 0;
+  }
+
+  .desktop-scale-frame-studio .studio-toolbar,
+  .desktop-scale-frame-studio .studio-toolbar-left,
+  .desktop-scale-frame-studio .studio-toolbar-right {
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .desktop-scale-frame-studio .studio-language {
+    order: initial;
+    width: auto;
+  }
+
+  .desktop-scale-frame-studio .studio-language button {
+    flex: 0 0 auto;
   }
 }

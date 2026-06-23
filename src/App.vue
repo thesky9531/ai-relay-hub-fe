@@ -775,6 +775,7 @@ let generationsRequestSequence = 0
 const referenceInput = ref(null)
 const referenceImages = ref([])   // [{ file, previewUrl }]
 const submitting = ref(false)
+const isComposerDragActive = ref(false)
 
 function clearReferenceImages() {
   referenceImages.value.forEach(r => { if (r.previewUrl) URL.revokeObjectURL(r.previewUrl) })
@@ -785,24 +786,81 @@ function removeReferenceImage(index) {
   removed.forEach(r => { if (r.previewUrl) URL.revokeObjectURL(r.previewUrl) })
 }
 
-// 选文件 — 仅暂存，提交时统一上传
-function handleReferenceFile(event) {
-  const file = event.target.files?.[0]
+function addReferenceFile(file) {
   if (!file) return
   if (!file.type.startsWith('image/')) {
     alert('请选择图片文件')
-    event.target.value = ''
     return
   }
   const max = activeParamConfig.value.imageMax
   if (referenceImages.value.length >= max) {
     alert(`最多 ${max} 张图片`)
-    event.target.value = ''
     return
   }
   const previewUrl = URL.createObjectURL(file)
   referenceImages.value = [...referenceImages.value, { file, previewUrl }]
+}
+
+function handleReferenceFile(event) {
+  const files = Array.from(event.target.files || [])
+  for (const file of files) {
+    if (referenceImages.value.length >= activeParamConfig.value.imageMax) break
+    addReferenceFile(file)
+  }
   event.target.value = ''
+}
+
+function handlePromptPaste(event) {
+  const items = Array.from(event.clipboardData?.items || [])
+  const imageItems = items.filter((item) => item.type.startsWith('image/'))
+  if (imageItems.length === 0) return
+
+  let addedCount = 0
+  for (const item of imageItems) {
+    if (referenceImages.value.length >= activeParamConfig.value.imageMax) break
+    const file = item.getAsFile()
+    if (!file) continue
+    addReferenceFile(file)
+    addedCount += 1
+  }
+
+  if (addedCount > 0) {
+    event.preventDefault()
+  }
+}
+
+function handleComposerDragEnter(event) {
+  const types = Array.from(event.dataTransfer?.types || [])
+  if (types.includes('Files')) {
+    isComposerDragActive.value = true
+  }
+}
+
+function handleComposerDragOver(event) {
+  const files = Array.from(event.dataTransfer?.files || [])
+  const hasImage = files.some((file) => file.type.startsWith('image/'))
+  if (!hasImage) return
+  event.preventDefault()
+  event.dataTransfer.dropEffect = 'copy'
+  isComposerDragActive.value = true
+}
+
+function handleComposerDragLeave(event) {
+  if (event.currentTarget?.contains(event.relatedTarget)) return
+  isComposerDragActive.value = false
+}
+
+function handleComposerDrop(event) {
+  const files = Array.from(event.dataTransfer?.files || [])
+  const imageFiles = files.filter((file) => file.type.startsWith('image/'))
+  isComposerDragActive.value = false
+  if (imageFiles.length === 0) return
+
+  event.preventDefault()
+  for (const file of imageFiles) {
+    if (referenceImages.value.length >= activeParamConfig.value.imageMax) break
+    addReferenceFile(file)
+  }
 }
 
 // 模型切换时清空
@@ -1053,8 +1111,13 @@ async function fetchConversations() {
 </script>
 
 <template>
-  <main v-if="isAuthenticated && activeView === 'works'" class="assets-shell">
-    <section class="assets-main">
+  <div
+    v-if="isAuthenticated && activeView === 'works'"
+    class="desktop-scale-frame desktop-scale-frame-assets"
+  >
+    <div class="desktop-scale-canvas">
+      <main class="assets-shell">
+        <section class="assets-main">
       <header class="assets-header">
         <button class="assets-back" type="button" @click="backToStudio">‹</button>
         <h1>{{ t.assets.title }}</h1>
@@ -1091,10 +1154,10 @@ async function fetchConversations() {
         <div class="empty-icon"></div>
         <p>{{ t.assets.empty }}</p>
       </div>
-    </section>
+        </section>
 
-    <aside class="profile-panel">
-      <section class="profile-card">
+        <aside class="profile-panel">
+          <section class="profile-card">
         <header class="profile-title">
           <h2>{{ t.assets.profileTitle }}</h2>
           <span>ID: 9741324 ▢</span>
@@ -1162,16 +1225,22 @@ async function fetchConversations() {
           <span>{{ t.assets.calls }}</span>
           <strong>0</strong>
         </div>
-      </section>
-    </aside>
-  </main>
+          </section>
+        </aside>
+      </main>
+    </div>
+  </div>
 
-  <main
+  <div
     v-else-if="isAuthenticated && activeView === 'console'"
-    class="studio-shell"
-    :class="{ 'sidebar-collapsed': isSidebarCollapsed }"
+    class="desktop-scale-frame desktop-scale-frame-studio"
   >
-    <aside class="studio-sidebar">
+    <div class="desktop-scale-canvas">
+      <main
+        class="studio-shell"
+        :class="{ 'sidebar-collapsed': isSidebarCollapsed }"
+      >
+        <aside class="studio-sidebar">
       <div class="studio-brand">
         <span class="studio-avatar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1226,9 +1295,9 @@ async function fetchConversations() {
           <p><i></i>{{ t.studio.online }}</p>
         </div>
       </div>
-    </aside>
+        </aside>
 
-    <section class="studio-main">
+        <section class="studio-main">
       <button
         v-if="isSidebarCollapsed"
         class="sidebar-expand-button"
@@ -1331,39 +1400,46 @@ async function fetchConversations() {
       </div>
 
       <form class="studio-composer" @submit.prevent="submitGeneration">
-        <!-- 参考图：文件上传 + URL 粘贴 -->
         <div class="composer-reference">
           <input
             ref="referenceInput"
             class="visually-hidden"
             type="file"
             accept="image/png,image/jpeg,image/webp"
+            multiple
             @change="handleReferenceFile"
           />
-          <div v-if="referenceImages.length" class="composer-reference-list">
-            <div v-for="(img, idx) in referenceImages" :key="img.previewUrl" class="composer-reference-preview">
-              <img :src="img.previewUrl" :alt="`参考图 ${idx+1}`" />
-              <button type="button" :aria-label="t.studio.removeReference" @click="removeReferenceImage(idx)">×</button>
-            </div>
-            <!-- 添加更多 -->
-            <button
-              v-if="referenceImages.length < activeParamConfig.imageMax"
-              type="button"
-              class="composer-reference-add"
-              @click="referenceInput?.click()"
-            >+</button>
-          </div>
           <button
-            v-if="referenceImages.length === 0"
             type="button"
-            class="composer-reference-button"
+            class="composer-reference-panel"
+            :class="{ empty: referenceImages.length === 0 }"
             @click="referenceInput?.click()"
-          >{{ activeParamConfig.imageLabel[activeLocale] }}</button>
-          <span class="composer-reference-hint" v-if="activeParamConfig.imageMin > 0 && referenceImages.length < activeParamConfig.imageMin">
-            还需 {{ activeParamConfig.imageMin - referenceImages.length }} 张
+          >
+            <div v-if="referenceImages.length" class="composer-reference-list">
+              <div v-for="(img, idx) in referenceImages" :key="img.previewUrl" class="composer-reference-preview">
+                <img :src="img.previewUrl" :alt="`参考图 ${idx+1}`" />
+                <button type="button" :aria-label="t.studio.removeReference" @click="removeReferenceImage(idx)">×</button>
+              </div>
+            </div>
+            <div v-else class="composer-reference-empty">上传图片 / 粘贴图片</div>
+          </button>
+          <span class="composer-reference-hint">
+            点击上传图片，或粘贴图片到对话框
+            <template v-if="activeParamConfig.imageMin > 0 && referenceImages.length < activeParamConfig.imageMin">
+              ，还需 {{ activeParamConfig.imageMin - referenceImages.length }} 张
+            </template>
           </span>
         </div>
-        <textarea v-model="promptText" :placeholder="t.studio.promptHint"></textarea>
+        <textarea
+          v-model="promptText"
+          :class="{ 'drag-active': isComposerDragActive }"
+          :placeholder="t.studio.promptHint"
+          @dragenter="handleComposerDragEnter"
+          @dragover="handleComposerDragOver"
+          @dragleave="handleComposerDragLeave"
+          @drop="handleComposerDrop"
+          @paste="handlePromptPaste"
+        ></textarea>
         <div class="composer-meta">
           <div class="composer-options">
             <div
@@ -1395,8 +1471,10 @@ async function fetchConversations() {
           <button class="composer-submit" type="submit" :disabled="submitting">{{ submitting ? '⏳' : '↑' }}</button>
         </div>
       </form>
-    </section>
-  </main>
+        </section>
+      </main>
+    </div>
+  </div>
 
     <!-- Auth modal (shown when not authenticated) -->
     <div v-if="showAuthModal" class="modal-backdrop" role="presentation" @click.self="showAuthModal = false">
