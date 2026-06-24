@@ -31,6 +31,14 @@ export function login(data) {
   return request('/auth/login', { method: 'POST', body: JSON.stringify(data) })
 }
 
+export function sendEmailCode(data) {
+  return request('/auth/send-email-code', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export function register(data) {
+  return request('/auth/register', { method: 'POST', body: JSON.stringify(data) })
+}
+
 // Models
 export function getModels() {
   return request('/models')

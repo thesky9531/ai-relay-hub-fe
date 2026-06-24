@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { getModels, createGeneration, getGenerations, getAssets, getProfile, recharge, login as loginApi, setToken as saveToken, uploadAsset } from './api/index.js'
+import { getModels, createGeneration, getGenerations, getAssets, getProfile, recharge, login as loginApi, register as registerApi, sendEmailCode, setToken as saveToken, uploadAsset } from './api/index.js'
 
 const activeLocale = ref('zh')
 const showAuthModal = ref(false)
@@ -11,11 +11,18 @@ const activeStudioModel = ref('jimeng')
 const isSidebarCollapsed = ref(false)
 const activeAssetTab = ref(0)
 const isBatchMode = ref(false)
+const authMode = ref('login')
 const authForm = ref({
+  account: '',
+  email: '',
+  code: '',
   username: '',
   password: '',
+  confirmPassword: '',
 })
 const authLoading = ref(false)
+const emailCodeLoading = ref(false)
+const emailCodeCountdown = ref(0)
 const authError = ref('')
 const API_BASE = '/api/v1'
 
@@ -391,13 +398,33 @@ const translations = {
     },
     auth: {
       titleLogin: '登录后进入创作控制台',
-      subtitle: '使用手机号接收验证码即可进入，后续可接入真实短信与账号体系。',
+      titleRegister: '邮箱注册后开始创作',
+      subtitle: '使用邮箱验证码注册，或用邮箱/用户名和密码登录。',
       login: '登录',
+      register: '注册',
       passwordLogin: '密码登录',
+      account: '邮箱 / 用户名',
+      accountPlaceholder: '请输入邮箱或用户名',
+      email: '邮箱',
+      emailPlaceholder: '请输入邮箱地址',
+      code: '验证码',
+      codePlaceholder: '请输入邮箱验证码',
+      sendCode: '发送验证码',
+      codeSent: '验证码已发送，请查看邮箱',
+      codeFailed: '验证码发送失败',
       username: '用户名',
-      usernamePlaceholder: '请输入用户名',
+      usernamePlaceholder: '可选，默认使用邮箱前缀',
       passwordLabel: '密码',
-      passwordPlaceholder: '请输入密码',
+      passwordPlaceholder: '请输入 8-72 位密码',
+      confirmPassword: '确认密码',
+      confirmPasswordPlaceholder: '请再次输入密码',
+      passwordMismatch: '两次输入的密码不一致',
+      loginRequired: '请输入邮箱/用户名和密码',
+      registerRequired: '请填写邮箱、验证码和密码',
+      emailRequired: '请输入邮箱地址',
+      loginFailed: '登录失败',
+      registerFailed: '注册失败',
+      registerSuccess: '注册成功',
       agreement: '登录或注册即代表你同意平台服务条款与隐私政策。',
       success: '已进入控制台',
     },
@@ -534,13 +561,33 @@ const translations = {
     },
     auth: {
       titleLogin: 'Log in to open the creation console',
-      subtitle: 'Use your phone number and verification code to continue. Real SMS and account services can be connected later.',
+      titleRegister: 'Register with email to start creating',
+      subtitle: 'Register with an email code, or log in with email/username and password.',
       login: 'Log In',
+      register: 'Register',
       passwordLogin: 'Password Login',
+      account: 'Email / Username',
+      accountPlaceholder: 'Enter email or username',
+      email: 'Email',
+      emailPlaceholder: 'Enter email address',
+      code: 'Code',
+      codePlaceholder: 'Enter email code',
+      sendCode: 'Send Code',
+      codeSent: 'Code sent. Please check your inbox.',
+      codeFailed: 'Failed to send code',
       username: 'Username',
-      usernamePlaceholder: 'Enter username',
+      usernamePlaceholder: 'Optional, defaults to email prefix',
       passwordLabel: 'Password',
-      passwordPlaceholder: 'Enter password',
+      passwordPlaceholder: 'Enter an 8-72 character password',
+      confirmPassword: 'Confirm Password',
+      confirmPasswordPlaceholder: 'Enter password again',
+      passwordMismatch: 'Passwords do not match',
+      loginRequired: 'Enter email/username and password',
+      registerRequired: 'Enter email, code and password',
+      emailRequired: 'Enter email address',
+      loginFailed: 'Login failed',
+      registerFailed: 'Register failed',
+      registerSuccess: 'Registered successfully',
       agreement: 'By continuing, you agree to the platform terms and privacy policy.',
       success: 'Console opened',
     },
@@ -677,13 +724,33 @@ const translations = {
     },
     auth: {
       titleLogin: 'ログインして制作コンソールへ',
-      subtitle: '電話番号に届く認証コードでログインできます。後から実際の SMS 基盤に接続できます。',
+      titleRegister: 'メール登録して制作を開始',
+      subtitle: 'メール認証コードで登録、またはメール/ユーザー名とパスワードでログインできます。',
       login: 'ログイン',
+      register: '登録',
       passwordLogin: 'パスワードログイン',
+      account: 'メール / ユーザー名',
+      accountPlaceholder: 'メールまたはユーザー名を入力',
+      email: 'メール',
+      emailPlaceholder: 'メールアドレスを入力',
+      code: '認証コード',
+      codePlaceholder: 'メール認証コードを入力',
+      sendCode: 'コード送信',
+      codeSent: 'コードを送信しました。メールを確認してください',
+      codeFailed: 'コード送信に失敗しました',
       username: 'ユーザー名',
-      usernamePlaceholder: 'ユーザー名を入力',
+      usernamePlaceholder: '任意。未入力の場合はメールの前半を使用',
       passwordLabel: 'パスワード',
-      passwordPlaceholder: 'パスワードを入力',
+      passwordPlaceholder: '8〜72文字のパスワードを入力',
+      confirmPassword: 'パスワード確認',
+      confirmPasswordPlaceholder: 'もう一度パスワードを入力',
+      passwordMismatch: 'パスワードが一致しません',
+      loginRequired: 'メール/ユーザー名とパスワードを入力してください',
+      registerRequired: 'メール、認証コード、パスワードを入力してください',
+      emailRequired: 'メールアドレスを入力してください',
+      loginFailed: 'ログインに失敗しました',
+      registerFailed: '登録に失敗しました',
+      registerSuccess: '登録しました',
       agreement: '続行すると、利用規約とプライバシーポリシーに同意したものとみなされます。',
       success: 'コンソールを開きました',
     },
@@ -691,8 +758,8 @@ const translations = {
 }
 
 const t = computed(() => translations[activeLocale.value])
-const authTitle = computed(() => t.value.auth.titleLogin)
-const submitLabel = computed(() => authLoading.value ? '...' : t.value.actions.submitLogin)
+const authTitle = computed(() => authMode.value === 'register' ? t.value.auth.titleRegister : t.value.auth.titleLogin)
+const submitLabel = computed(() => authLoading.value ? '...' : authMode.value === 'register' ? t.value.auth.register : t.value.actions.submitLogin)
 
 const filteredStudioModels = computed(() => studioModels.value)
 const selectedStudioModel = computed(
@@ -752,6 +819,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleDocumentClick)
   stopGenerationsPolling()
+  stopEmailCodeCountdown()
   clearReferenceImages()
 })
 
@@ -759,6 +827,7 @@ const promptText = ref('')
 const conversations = ref([])
 const GENERATIONS_POLL_INTERVAL_MS = 5000
 let generationsPollTimer = null
+let emailCodeTimer = null
 let generationsRequestSequence = 0
 const referenceInput = ref(null)
 const referenceImages = ref([])   // [{ file, previewUrl }]
@@ -959,38 +1028,115 @@ function requestInnerPage() {
   showAuthModal.value = true
 }
 
+// ── 认证 ──
+function switchAuthMode(mode) {
+  authMode.value = mode
+  resetAuthForm()
+}
+
+function startEmailCodeCountdown(seconds = 60) {
+  stopEmailCodeCountdown()
+  emailCodeCountdown.value = seconds
+  emailCodeTimer = window.setInterval(() => {
+    emailCodeCountdown.value -= 1
+    if (emailCodeCountdown.value <= 0) {
+      stopEmailCodeCountdown()
+    }
+  }, 1000)
+}
+
+function stopEmailCodeCountdown() {
+  if (emailCodeTimer) {
+    window.clearInterval(emailCodeTimer)
+    emailCodeTimer = null
+  }
+  emailCodeCountdown.value = 0
+}
+
+async function sendRegisterEmailCode() {
+  if (!authForm.value.email) {
+    authError.value = t.value.auth.emailRequired
+    return
+  }
+  emailCodeLoading.value = true
+  authError.value = ''
+  try {
+    await sendEmailCode({ email: authForm.value.email })
+    startEmailCodeCountdown(60)
+    authError.value = t.value.auth.codeSent
+  } catch (e) {
+    authError.value = e.message || t.value.auth.codeFailed
+  } finally {
+    emailCodeLoading.value = false
+  }
+}
+
+function enterAfterAuth(data) {
+  saveToken(data.token)
+  isAuthenticated.value = true
+  activeView.value = 'console'
+  showAuthModal.value = false
+  resetAuthForm()
+  loadUserData()
+}
+
 // ── 密码登录 ──
 async function doPasswordLogin() {
-  if (!authForm.value.username || !authForm.value.password) {
-    authError.value = '请输入用户名和密码'
+  if (!authForm.value.account || !authForm.value.password) {
+    authError.value = t.value.auth.loginRequired
     return
   }
   authLoading.value = true
   authError.value = ''
   try {
     const data = await loginApi({
+      account: authForm.value.account,
+      password: authForm.value.password,
+    })
+    enterAfterAuth(data)
+  } catch (e) {
+    authError.value = e.message || t.value.auth.loginFailed
+  } finally {
+    authLoading.value = false
+  }
+}
+
+async function doRegister() {
+  if (!authForm.value.email || !authForm.value.code || !authForm.value.password) {
+    authError.value = t.value.auth.registerRequired
+    return
+  }
+  if (authForm.value.password !== authForm.value.confirmPassword) {
+    authError.value = t.value.auth.passwordMismatch
+    return
+  }
+  authLoading.value = true
+  authError.value = ''
+  try {
+    const data = await registerApi({
+      email: authForm.value.email,
+      code: authForm.value.code,
       username: authForm.value.username,
       password: authForm.value.password,
     })
-    saveToken(data.token)
-    isAuthenticated.value = true
-    activeView.value = 'console'
-    showAuthModal.value = false
-    resetAuthForm()
-    loadUserData()
+    enterAfterAuth(data)
   } catch (e) {
-    authError.value = e.message || '登录失败'
+    authError.value = e.message || t.value.auth.registerFailed
   } finally {
     authLoading.value = false
   }
 }
 
 function resetAuthForm() {
-  authForm.value = { phone: '', code: '', username: '', password: '' }
+  authForm.value = { account: '', email: '', code: '', username: '', password: '', confirmPassword: '' }
   authError.value = ''
 }
 
 function submitAuth() {
+  if (authMode.value === 'register') {
+    doRegister()
+    return
+  }
   doPasswordLogin()
 }
 
@@ -1483,17 +1629,60 @@ async function fetchConversations() {
         <!-- Error message -->
         <div v-if="authError" class="auth-error">{{ authError }}</div>
 
-        <!-- Password login form -->
+        <!-- Auth form -->
         <form class="auth-form" @submit.prevent="submitAuth">
-          <label>
-            <span>{{ t.auth.username }}</span>
-            <input v-model="authForm.username" type="text" :placeholder="t.auth.usernamePlaceholder" required />
-          </label>
+          <div class="auth-tabs" role="tablist">
+            <button class="auth-tab" :class="{ active: authMode === 'login' }" type="button" @click="switchAuthMode('login')">
+              {{ t.auth.login }}
+            </button>
+            <button class="auth-tab" :class="{ active: authMode === 'register' }" type="button" @click="switchAuthMode('register')">
+              {{ t.auth.register }}
+            </button>
+          </div>
 
-          <label>
-            <span>{{ t.auth.passwordLabel }}</span>
-            <input v-model="authForm.password" type="password" :placeholder="t.auth.passwordPlaceholder" required />
-          </label>
+          <template v-if="authMode === 'login'">
+            <label>
+              <span>{{ t.auth.account }}</span>
+              <input v-model="authForm.account" type="text" :placeholder="t.auth.accountPlaceholder" required />
+            </label>
+
+            <label>
+              <span>{{ t.auth.passwordLabel }}</span>
+              <input v-model="authForm.password" type="password" :placeholder="t.auth.passwordPlaceholder" required />
+            </label>
+          </template>
+
+          <template v-else>
+            <label>
+              <span>{{ t.auth.email }}</span>
+              <input v-model="authForm.email" type="email" :placeholder="t.auth.emailPlaceholder" required />
+            </label>
+
+            <label>
+              <span>{{ t.auth.code }}</span>
+              <div class="auth-inline">
+                <input v-model="authForm.code" type="text" inputmode="numeric" :placeholder="t.auth.codePlaceholder" required />
+                <button class="auth-code-button" type="button" :disabled="emailCodeLoading || emailCodeCountdown > 0" @click="sendRegisterEmailCode">
+                  {{ emailCodeCountdown > 0 ? `${emailCodeCountdown}s` : t.auth.sendCode }}
+                </button>
+              </div>
+            </label>
+
+            <label>
+              <span>{{ t.auth.username }}</span>
+              <input v-model="authForm.username" type="text" :placeholder="t.auth.usernamePlaceholder" />
+            </label>
+
+            <label>
+              <span>{{ t.auth.passwordLabel }}</span>
+              <input v-model="authForm.password" type="password" :placeholder="t.auth.passwordPlaceholder" required />
+            </label>
+
+            <label>
+              <span>{{ t.auth.confirmPassword }}</span>
+              <input v-model="authForm.confirmPassword" type="password" :placeholder="t.auth.confirmPasswordPlaceholder" required />
+            </label>
+          </template>
 
           <button class="button button-primary auth-submit" type="submit" :disabled="authLoading">{{ submitLabel }}</button>
           <p class="auth-agreement">{{ t.auth.agreement }}</p>
